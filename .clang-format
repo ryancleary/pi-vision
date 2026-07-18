@@ -1,5 +1,5 @@
 BasedOnStyle: WebKit
 ColumnLimit: 100
-Standard: c++20
+Standard: c++17
 PointerAlignment: Right
 SortIncludes: CaseSensitive
