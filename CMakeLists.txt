@@ -34,4 +34,5 @@ if(PIVISION_BUILD_TESTS)
 endif()
 
 add_subdirectory(app)
+add_subdirectory(components)
 
