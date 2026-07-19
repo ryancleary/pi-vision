@@ -25,7 +25,7 @@ if(OpenCV_VERSION VERSION_GREATER_EQUAL 5)
 endif()
 message(STATUS "Using OpenCV ${OpenCV_VERSION} from ${OpenCV_DIR}")
 
-qt_standard_project_setup()
+qt_standard_project_setup(REQUIRES 6.8)
 
 if(PIVISION_BUILD_TESTS)
     enable_testing()
@@ -33,4 +33,5 @@ if(PIVISION_BUILD_TESTS)
     include(GoogleTest)
 endif()
 
-# Components and app are added in later steps.
+add_subdirectory(app)
+
