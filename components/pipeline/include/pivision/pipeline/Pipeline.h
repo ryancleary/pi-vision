@@ -20,6 +20,7 @@ class FrameProducer;
 // Lives on the GUI thread.
 class Pipeline : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString sourceName READ sourceName CONSTANT)	    
 public:
     explicit Pipeline(std::unique_ptr<capture::FrameSource> source, QObject *parent = nullptr);
     ~Pipeline() override;

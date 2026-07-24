@@ -27,13 +27,16 @@ message(STATUS "Using OpenCV ${OpenCV_VERSION} from ${OpenCV_DIR}")
 
 qt_standard_project_setup(REQUIRES 6.8)
 
+# Put every QML module in one directory so the QML compiler and Qt Creator
+# can find modules defined in other subdirectories.
+set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/qml)
+
 if(PIVISION_BUILD_TESTS)
     enable_testing()
     find_package(GTest REQUIRED)
     include(GoogleTest)
 endif()
 
-add_subdirectory(app)
 add_subdirectory(components)
-
+add_subdirectory(app)
 
