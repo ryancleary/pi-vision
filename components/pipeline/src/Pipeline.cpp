@@ -20,10 +20,7 @@ Pipeline::Pipeline(std::unique_ptr<capture::FrameSource> source, QObject *parent
     connect(m_producer.get(), &FrameProducer::failed, this, &Pipeline::failed);
 }
 
-Pipeline::~Pipeline()
-{
-    stop();
-}
+Pipeline::~Pipeline() { stop(); }
 
 void Pipeline::start()
 {
@@ -43,20 +40,10 @@ void Pipeline::stop()
     m_thread.wait();
 }
 
-std::optional<DisplayFrame> Pipeline::takeLatestFrame()
-{
-    return m_buffer.take();
-}
+std::optional<DisplayFrame> Pipeline::takeLatestFrame() { return m_buffer.take(); }
 
-std::uint64_t Pipeline::droppedFrames() const
-{
-    return m_buffer.droppedCount();
-}
+std::uint64_t Pipeline::droppedFrames() const { return m_buffer.droppedCount(); }
 
-QString Pipeline::sourceName() const
-{
-    return m_sourceName;
-}
+QString Pipeline::sourceName() const { return m_sourceName; }
 
 } // namespace pivision::pipeline
-

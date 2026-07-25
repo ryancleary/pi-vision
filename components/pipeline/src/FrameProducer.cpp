@@ -8,8 +8,8 @@
 
 namespace pivision::pipeline {
 
-FrameProducer::FrameProducer(std::unique_ptr<capture::FrameSource> source,
-    LatestFrameBuffer &buffer)
+FrameProducer::FrameProducer(
+    std::unique_ptr<capture::FrameSource> source, LatestFrameBuffer &buffer)
     : m_source(std::move(source))
     , m_buffer(buffer)
 {
@@ -20,7 +20,8 @@ FrameProducer::~FrameProducer() = default;
 void FrameProducer::start()
 {
     if (!m_source->open()) {
-        emit failed(QStringLiteral("Could not open %1").arg(QString::fromStdString(m_source->name())));
+        emit failed(
+            QStringLiteral("Could not open %1").arg(QString::fromStdString(m_source->name())));
         return;
     }
 
@@ -46,19 +47,18 @@ void FrameProducer::tick()
     if (!m_source->read(m_frame) || m_frame.image.type() != CV_8UC3) {
         stop();
         emit failed(QStringLiteral("%1 stopped producing frames")
-                        .arg(QString::fromStdString(m_source->name())));
+                .arg(QString::fromStdString(m_source->name())));
         return;
     }
 
     // Wrap the BGR pixels without copying, then deep-copy once so the QImage
     // owns its data before it leaves this thread.
     const cv::Mat &bgr = m_frame.image;
-    const QImage view(bgr.data, bgr.cols, bgr.rows, static_cast<qsizetype>(bgr.step),
-        QImage::Format_BGR888);
+    const QImage view(
+        bgr.data, bgr.cols, bgr.rows, static_cast<qsizetype>(bgr.step), QImage::Format_BGR888);
 
     if (m_buffer.put({ view.copy(), m_frame.index, m_frame.captured }))
         emit frameAvailable();
 }
 
 } // namespace pivision::pipeline
-

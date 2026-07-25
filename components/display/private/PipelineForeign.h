@@ -33,4 +33,3 @@ public:
 } // namespace pivision::display
 
 #endif // PIVISION_DISPLAY_PIPELINEFOREIGN_H
-

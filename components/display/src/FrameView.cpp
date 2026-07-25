@@ -13,10 +13,7 @@ FrameView::FrameView(QQuickItem *parent)
     setFlag(ItemHasContents, true);
 }
 
-pivision::pipeline::Pipeline *FrameView::pipeline() const
-{
-    return m_pipeline;
-}
+pivision::pipeline::Pipeline *FrameView::pipeline() const { return m_pipeline; }
 
 void FrameView::setPipeline(pivision::pipeline::Pipeline *pipeline)
 {
@@ -78,4 +75,3 @@ QSGNode *FrameView::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 }
 
 } // namespace pivision::display
-

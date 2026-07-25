@@ -16,4 +16,3 @@ protected:
 } // namespace pivision::testsupport
 
 #endif // PIVISION_TESTSUPPORT_QTEVENTLOOPFIXTURE_H
-

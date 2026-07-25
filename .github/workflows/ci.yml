@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  QT_VERSION: 6.8.3
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libgtest-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+
+      # Qt: same aqt command as the local setup, cached between runs.
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: ~/Qt/${{ env.QT_VERSION }}
+          key: qt-${{ env.QT_VERSION }}-linux_gcc_64
+
+      - name: Install Qt
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        run: |
+          pipx install aqtinstall
+          aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$HOME/Qt"
+
+      - name: Set QT_ROOT_DIR
+        run: echo "QT_ROOT_DIR=$HOME/Qt/$QT_VERSION/gcc_64" >> "$GITHUB_ENV"
+
+      # OpenCV: built by the same script used locally. The cache key is the
+      # script's hash, so changing a flag or the version forces a rebuild.
+      - name: Cache OpenCV
+        id: cache-opencv
+        uses: actions/cache@v4
+        with:
+          path: ~/opt/opencv
+          key: opencv-${{ runner.os }}-${{ hashFiles('scripts/build-opencv.sh') }}
+
+      - name: Build OpenCV
+        if: steps.cache-opencv.outputs.cache-hit != 'true'
+        run: sh scripts/build-opencv.sh "$HOME/opt/opencv"
+
+      - name: Set OPENCV_ROOT_DIR
+        run: echo "OPENCV_ROOT_DIR=$HOME/opt/opencv" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: cmake --preset debug
+
+      - name: Build
+        run: cmake --build --preset debug
+
+      - name: Test
+        run: ctest --preset debug
+
+

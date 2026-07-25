@@ -15,8 +15,7 @@ struct TestPatternConfig {
 
 // Synthetic frames: a box moving across a gradient, with the frame index drawn on it.
 // Needs no files or hardware, and produces identical output on every run.
-std::unique_ptr<FrameSource> makeTestPatternSource(const TestPatternConfig &config = {});
+std::unique_ptr<FrameSource> makeTestPatternSource(const TestPatternConfig &config = { });
 
 } // namespace pivision::capture
 #endif
-

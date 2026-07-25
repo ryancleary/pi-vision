@@ -93,4 +93,3 @@ TEST(TestPatternSource, OpenFailsForInvalidFrameRate)
     config.fps = 0.0;
     EXPECT_FALSE(makeTestPatternSource(config)->open());
 }
-

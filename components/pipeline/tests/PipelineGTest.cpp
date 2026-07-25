@@ -62,4 +62,3 @@ TEST_F(PipelineTest, StopIsSafeWithoutStartAndWhenRepeated)
     pipeline.stop();
     SUCCEED();
 }
-

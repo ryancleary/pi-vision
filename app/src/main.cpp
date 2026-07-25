@@ -19,11 +19,11 @@ int main(int argc, char *argv[])
     pivision::display::exposePipeline(&pipeline);
 
     QQmlApplicationEngine engine;
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+    QObject::connect(
+        &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         [] { QCoreApplication::exit(EXIT_FAILURE); }, Qt::QueuedConnection);
     engine.loadFromModule("PiVision", "Main");
 
     pipeline.start();
     return app.exec();
 }
-

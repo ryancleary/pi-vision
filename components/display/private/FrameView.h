@@ -16,8 +16,8 @@ namespace pivision::display {
 class FrameView : public QQuickItem {
     Q_OBJECT
     QML_ELEMENT
-    Q_PROPERTY(pivision::pipeline::Pipeline *pipeline READ pipeline WRITE setPipeline
-            NOTIFY pipelineChanged)
+    Q_PROPERTY(pivision::pipeline::Pipeline *pipeline READ pipeline WRITE setPipeline NOTIFY
+            pipelineChanged)
 
 public:
     explicit FrameView(QQuickItem *parent = nullptr);
@@ -43,4 +43,3 @@ private:
 } // namespace pivision::display
 
 #endif // PIVISION_DISPLAY_FRAMEVIEW_H
-
