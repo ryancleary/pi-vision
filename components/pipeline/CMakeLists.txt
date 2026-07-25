@@ -20,3 +20,9 @@ target_link_libraries(pivision_pipeline
 # Lets QML modules in other components refer to Pipeline (see display).
 qt_extract_metatypes(pivision_pipeline)
 
+if(PIVISION_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
+
+
