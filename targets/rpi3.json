@@ -1,0 +1,7 @@
+{
+  "description": "Raspberry Pi 3 Model B, 64-bit",
+  "kas": "kas/rpi3.yml",
+  "machine": "raspberrypi3-64",
+  "image": "pivision-image",
+  "delivery": "sdcard"
+}
