@@ -11,8 +11,14 @@ IMAGE_LINGUAS = ""
 # Removed when the release image is split out.
 IMAGE_FEATURES += "ssh-server-dropbear allow-empty-password empty-root-password allow-root-login"
 
+# Kernel modules each target needs. Most drivers are compiled into the kernel
+# (checked against each kernel's .config), so the default is none. A target
+# that needs modules adds them with a machine override, for example:
+#   PIVISION_KERNEL_MODULES:qemux86-64 = "kernel-module-foo"
+PIVISION_KERNEL_MODULES ?= ""
+
 IMAGE_INSTALL += " \
-    kernel-modules \
+    ${PIVISION_KERNEL_MODULES} \
     mesa-megadriver \
     qtbase \
     qtbase-plugins \

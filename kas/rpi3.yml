@@ -1,0 +1,12 @@
+header:
+  version: 14
+  includes:
+    - kas/base.yml
+
+machine: raspberrypi3-64
+
+repos:
+  meta-raspberrypi:
+    url: https://github.com/agherzan/meta-raspberrypi
+    branch: scarthgap
+

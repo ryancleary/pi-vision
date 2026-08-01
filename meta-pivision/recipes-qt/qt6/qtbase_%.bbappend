@@ -11,6 +11,8 @@ PACKAGECONFIG_DEFAULT:class-target = "\
     harfbuzz \
     jpeg \
     libinput \
+    ltcg \
+    optimize-size \
     png \
     udev \
     xkbcommon \
