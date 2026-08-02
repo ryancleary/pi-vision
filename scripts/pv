@@ -6,6 +6,7 @@
   scripts/pv build image TARGET               build the Yocto image for TARGET
   scripts/pv build all                        every desktop preset and every image target
   scripts/pv size TARGET                      sizes of the last image built for TARGET
+  scripts/pv run TARGET [options]             boot a QEMU target's image (see: run --help)
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
 which stays the source of truth for the Yocto configuration.
@@ -14,6 +15,7 @@ which stays the source of truth for the Yocto configuration.
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -160,6 +162,63 @@ def show_size(target):
     return 0
 
 
+def kvm_available():
+    return os.access("/dev/kvm", os.R_OK | os.W_OK)
+
+
+def qemu_command(target, args):
+    qemu = target.get("qemu")
+    if target["delivery"] != "qemu" or not qemu:
+        fail(f"{target['name']} is delivered by {target['delivery']}, not QEMU")
+
+    image_dir = DEPLOY_DIR / target["machine"]
+    kernel = image_dir / qemu["kernel"]
+    rootfs = image_dir / f"{target['image']}-{target['machine']}.rootfs.{qemu['rootfs']}"
+    for path in (kernel, rootfs):
+        if not path.exists():
+            fail(f"{path.relative_to(REPO)} not found; build it with: scripts/pv build image {target['name']}")
+
+    command = [qemu["binary"]]
+    if kvm_available():
+        command += ["-enable-kvm", "-cpu", "host"]
+    else:
+        print("pv: /dev/kvm not available, using software emulation (slow)", file=sys.stderr)
+
+    drive = f"file={rootfs},if=virtio,format=raw"
+    if not args.persist:
+        drive += ",snapshot=on"  # changes are discarded; the built image stays untouched
+
+    forwards = f"hostfwd=tcp::{args.ssh_port}-:22,hostfwd=tcp::{args.vnc_port}-:5900"
+    command += [
+        "-smp", str(qemu["cpus"]),
+        "-m", str(args.memory or qemu["memory"]),
+        "-kernel", str(kernel),
+        "-append", qemu["append"],
+        "-drive", drive,
+        "-netdev", f"user,id=net0,{forwards}",
+        "-device", "virtio-net-pci,netdev=net0",
+        "-serial", "mon:stdio",
+    ]
+    if args.display == "none":
+        command += ["-display", "none"]
+    else:
+        command += ["-device", "virtio-vga-gl", "-display", f"{args.display},gl=on"]
+    return command
+
+
+def run_qemu(target, args):
+    command = qemu_command(target, args)
+    if args.dry_run:
+        print(shlex.join(command))
+        return 0
+
+    print("Console is in this terminal; log in as root. Quit: Ctrl+A then X.")
+    print(f"SSH: ssh -p {args.ssh_port} -o StrictHostKeyChecking=no "
+          f"-o UserKnownHostsFile=/dev/null root@localhost")
+    print(f"VNC (QT_QPA_PLATFORM=vnc in the guest): vncviewer localhost:{args.vnc_port}", flush=True)
+    os.execvp(command[0], command)
+
+
 def main():
     parser = argparse.ArgumentParser(prog="pv", description="pi-vision build tool")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -175,6 +234,17 @@ def main():
     size = commands.add_parser("size", help="show image sizes for a target")
     size.add_argument("target")
 
+    run = commands.add_parser("run", help="boot a QEMU target's image")
+    run.add_argument("target")
+    run.add_argument("--display", default="sdl", choices=["sdl", "gtk", "none"],
+                     help="QEMU window type, or none for SSH/VNC only (default: sdl)")
+    run.add_argument("--memory", type=int, help="RAM in MB (default: from the target file)")
+    run.add_argument("--ssh-port", type=int, default=2222, help="host port for guest SSH (default: 2222)")
+    run.add_argument("--vnc-port", type=int, default=5900, help="host port for guest VNC (default: 5900)")
+    run.add_argument("--persist", action="store_true",
+                     help="keep changes made in the guest (default: discard them)")
+    run.add_argument("--dry-run", action="store_true", help="print the QEMU command instead of running it")
+
     args = parser.parse_args()
 
     if args.command == "targets":
@@ -184,6 +254,9 @@ def main():
 
     if args.command == "size":
         return show_size(get_target(args.target))
+
+    if args.command == "run":
+        return run_qemu(get_target(args.target), args)
 
     if args.what == "desktop":
         check_desktop_environment()
