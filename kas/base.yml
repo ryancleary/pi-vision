@@ -1,7 +1,7 @@
 header:
   version: 14
 
-distro: pivision
+distro: pivision-os
 target: pivision-image
 
 repos:

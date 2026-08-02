@@ -7,6 +7,7 @@
   scripts/pv build all                        every desktop preset and every image target
   scripts/pv size TARGET                      sizes of the last image built for TARGET
   scripts/pv run TARGET [options]             boot a QEMU target's image (see: run --help)
+  scripts/pv stop TARGET                      stop a QEMU target started with run --background
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
 which stays the source of truth for the Yocto configuration.
@@ -27,6 +28,7 @@ TARGETS_DIR = REPO / "targets"
 LOG_ROOT = REPO / "build-logs"
 KAS = REPO / "scripts" / "kas.sh"
 DEPLOY_DIR = REPO / "yocto" / "build" / "tmp" / "deploy" / "images"
+QEMU_STATE_DIR = LOG_ROOT / "qemu"
 
 DESKTOP_PRESETS = ["debug", "release"]
 TESTED_PRESETS = {"debug"}  # presets that have a matching ctest preset
@@ -197,8 +199,12 @@ def qemu_command(target, args):
         "-drive", drive,
         "-netdev", f"user,id=net0,{forwards}",
         "-device", "virtio-net-pci,netdev=net0",
-        "-serial", "mon:stdio",
     ]
+    if args.background:
+        # No terminal to attach to: the serial console goes to a log file instead.
+        command += ["-serial", f"file:{qemu_console_log(target)}"]
+    else:
+        command += ["-serial", "mon:stdio"]
     if args.display == "none":
         command += ["-display", "none"]
     else:
@@ -206,17 +212,82 @@ def qemu_command(target, args):
     return command
 
 
+def qemu_console_log(target):
+    return QEMU_STATE_DIR / f"{target['name']}.console.log"
+
+
+def qemu_pid_file(target):
+    return QEMU_STATE_DIR / f"{target['name']}.pid"
+
+
+def running_pid(target):
+    """PID of a background QEMU for this target, or None if it isn't running."""
+    pid_file = qemu_pid_file(target)
+    try:
+        pid = int(pid_file.read_text())
+        os.kill(pid, 0)  # signal 0: only checks the process exists
+        return pid
+    except (OSError, ValueError):
+        pid_file.unlink(missing_ok=True)
+        return None
+
+
 def run_qemu(target, args):
+    if args.background:
+        QEMU_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        pid = running_pid(target)
+        if pid:
+            fail(f"{target['name']} is already running (pid {pid}); stop it with: scripts/pv stop {target['name']}")
+
     command = qemu_command(target, args)
     if args.dry_run:
         print(shlex.join(command))
         return 0
 
-    print("Console is in this terminal; log in as root. Quit: Ctrl+A then X.")
-    print(f"SSH: ssh -p {args.ssh_port} -o StrictHostKeyChecking=no "
-          f"-o UserKnownHostsFile=/dev/null root@localhost")
-    print(f"VNC (QT_QPA_PLATFORM=vnc in the guest): vncviewer localhost:{args.vnc_port}", flush=True)
-    os.execvp(command[0], command)
+    ssh = (f"ssh -p {args.ssh_port} -o StrictHostKeyChecking=no "
+           f"-o UserKnownHostsFile=/dev/null root@localhost")
+    vnc = f"vncviewer localhost:{args.vnc_port}"
+
+    if not args.background:
+        print("Console is in this terminal; log in as root. Quit: Ctrl+A then X.")
+        print(f"SSH: {ssh}")
+        print(f"VNC (QT_QPA_PLATFORM=vnc in the guest): {vnc}", flush=True)
+        os.execvp(command[0], command)
+
+    # Detached from this terminal: its own session, no stdin. QEMU's own messages go to
+    # a separate log, since the guest console log is written by QEMU itself.
+    qemu_log = QEMU_STATE_DIR / f"{target['name']}.qemu.log"
+    with qemu_log.open("w") as log:
+        process = subprocess.Popen(command, cwd=REPO, stdin=subprocess.DEVNULL,
+                                   stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    time.sleep(1)
+    if process.poll() is not None:
+        fail(f"QEMU exited immediately; see {qemu_log.relative_to(REPO)}")
+    qemu_pid_file(target).write_text(f"{process.pid}\n")
+
+    print(f"{target['name']} running in the background (pid {process.pid}).")
+    print(f"Console log: tail -f {qemu_console_log(target).relative_to(REPO)}")
+    print(f"SSH (once booted): {ssh}")
+    print(f"VNC (QT_QPA_PLATFORM=vnc in the guest): {vnc}")
+    print(f"Stop: scripts/pv stop {target['name']}")
+    return 0
+
+
+def stop_qemu(target):
+    pid = running_pid(target)
+    if not pid:
+        print(f"{target['name']} is not running")
+        return 0
+    os.kill(pid, 15)  # SIGTERM: QEMU shuts the VM down and exits
+    for _ in range(50):
+        if running_pid(target) is None:
+            break
+        time.sleep(0.1)
+    else:
+        fail(f"pid {pid} did not exit; kill it with: kill -9 {pid}")
+    qemu_pid_file(target).unlink(missing_ok=True)
+    print(f"Stopped {target['name']} (pid {pid})")
+    return 0
 
 
 def main():
@@ -243,7 +314,12 @@ def main():
     run.add_argument("--vnc-port", type=int, default=5900, help="host port for guest VNC (default: 5900)")
     run.add_argument("--persist", action="store_true",
                      help="keep changes made in the guest (default: discard them)")
+    run.add_argument("-b", "--background", action="store_true",
+                     help="return the terminal; console goes to a log file, use SSH to log in")
     run.add_argument("--dry-run", action="store_true", help="print the QEMU command instead of running it")
+
+    stop = commands.add_parser("stop", help="stop a QEMU target started with run --background")
+    stop.add_argument("target")
 
     args = parser.parse_args()
 
@@ -257,6 +333,9 @@ def main():
 
     if args.command == "run":
         return run_qemu(get_target(args.target), args)
+
+    if args.command == "stop":
+        return stop_qemu(get_target(args.target))
 
     if args.what == "desktop":
         check_desktop_environment()
