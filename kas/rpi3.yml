@@ -10,3 +10,9 @@ repos:
     url: https://github.com/agherzan/meta-raspberrypi
     branch: scarthgap
 
+local_conf_header:
+  boot-screen: |
+    # No firmware rainbow screen, no kernel messages or cursor on HDMI.
+    DISABLE_SPLASH = "1"
+    CMDLINE:append = " quiet loglevel=3 vt.global_cursor_default=0"
+
