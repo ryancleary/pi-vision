@@ -3,7 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: &yocto-only
+      - 'meta-pivision/**'
+      - 'kas/**'
+      - 'targets/**'
+      - 'docs/**'
+      - '**.md'
+      - 'scripts/kas.sh'
+      - 'scripts/pv'
   pull_request:
+    paths-ignore: *yocto-only
 
 env:
   QT_VERSION: 6.8.3
