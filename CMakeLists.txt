@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(PIVISION_BUILD_TESTS "Build unit tests" ON)
+# Desktop builds set this (CMakePresets.json) so each run's log lands in the repo.
+# Device builds leave it empty: the app logs to the journal only.
+set(PIVISION_DEV_LOG_FILE "" CACHE STRING "Default log file for development builds")
 
 # Pinned to Qt 6.8 to match the meta-qt6 branch used for the Pi image.
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick)

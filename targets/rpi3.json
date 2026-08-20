@@ -3,5 +3,8 @@
   "kas": "kas/rpi3.yml",
   "machine": "raspberrypi3-64",
   "image": "pivision-image",
-  "delivery": "sdcard"
+  "delivery": "sdcard",
+  "ssh": {
+    "port": 22
+  }
 }

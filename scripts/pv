@@ -8,6 +8,7 @@
   scripts/pv size TARGET                      sizes of the last image built for TARGET
   scripts/pv run TARGET [options]             boot a QEMU target's image (see: run --help)
   scripts/pv stop TARGET                      stop a QEMU target started with run --background
+  scripts/pv logs TARGET [options]            collect logs into logs/TARGET/ (see: logs --help)
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
 which stays the source of truth for the Yocto configuration.
@@ -16,10 +17,15 @@ which stays the source of truth for the Yocto configuration.
 import argparse
 import json
 import os
+import re
 import shlex
+import shutil
+import tarfile
+import tempfile
 import subprocess
 import sys
 import time
+from datetime import datetime
 from datetime import datetime
 from pathlib import Path
 
@@ -29,6 +35,10 @@ LOG_ROOT = REPO / "build-logs"
 KAS = REPO / "scripts" / "kas.sh"
 DEPLOY_DIR = REPO / "yocto" / "build" / "tmp" / "deploy" / "images"
 QEMU_STATE_DIR = LOG_ROOT / "qemu"
+DEVICE_LOG_ROOT = REPO / "logs"
+CRASH_DIR_ON_DEVICE = "/var/crash"
+SSH_OPTIONS = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+               "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=10"]
 
 DESKTOP_PRESETS = ["debug", "release"]
 TESTED_PRESETS = {"debug"}  # presets that have a matching ctest preset
@@ -290,6 +300,185 @@ def stop_qemu(target):
     return 0
 
 
+
+# --- logs -------------------------------------------------------------------
+
+PRIORITIES = ["emerg", "alert", "crit", "err", "warning", "notice", "info", "debug"]
+DUMP_NAME = re.compile(r"^\d{6}_")
+
+
+def entry_message(entry):
+    """journalctl -o json gives MESSAGE as a string, or as a byte list when it isn't UTF-8."""
+    message = entry.get("MESSAGE", "")
+    if isinstance(message, list):
+        return bytes(message).decode("utf-8", errors="replace")
+    return message or ""
+
+
+def format_entry(entry):
+    try:
+        stamp = datetime.fromtimestamp(int(entry["__REALTIME_TIMESTAMP"]) / 1e6)
+        when = stamp.strftime("%Y-%m-%d %H:%M:%S.") + f"{stamp.microsecond // 1000:03d}"
+    except (KeyError, ValueError):
+        when = "????-??-?? ??:??:??.???"
+    ident = entry.get("SYSLOG_IDENTIFIER") or entry.get("_COMM") or "?"
+    pid = entry.get("_PID") or entry.get("SYSLOG_PID")
+    try:
+        priority = PRIORITIES[int(entry.get("PRIORITY", 6))]
+    except (ValueError, IndexError):
+        priority = "info"
+    source = f"{ident}[{pid}]" if pid else ident
+    return f"{when} {source} {priority}: {entry_message(entry)}\n"
+
+
+def our_unit(entry):
+    """The pi-vision unit an entry belongs to, if any. Messages a service writes carry
+    _SYSTEMD_UNIT; systemd's own messages about it (start, exit, restart) carry UNIT."""
+    for field in ("_SYSTEMD_UNIT", "UNIT"):
+        unit = entry.get(field, "")
+        if unit.startswith("pivision"):
+            return unit.removesuffix(".service")
+    return None
+
+
+class LogWriter:
+    """Writes every journal entry to system.log and ours also to <service>.log."""
+
+    def __init__(self, directory, flush_each=False):
+        self.directory = directory
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.flush_each = flush_each
+        self.system = (directory / "system.log").open("w")
+        self.services = {}
+        self.count = 0
+
+    def write_json_line(self, line):
+        line = line.strip()
+        if not line:
+            return
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            return
+        text = format_entry(entry)
+        self.system.write(text)
+        unit = our_unit(entry)
+        if unit:
+            if unit not in self.services:
+                self.services[unit] = (self.directory / f"{unit}.log").open("w")
+            self.services[unit].write(text)
+        self.count += 1
+        if self.flush_each:
+            self.flush()
+
+    def flush(self):
+        self.system.flush()
+        for f in self.services.values():
+            f.flush()
+
+    def close(self):
+        self.system.close()
+        for f in self.services.values():
+            f.close()
+
+    def summary(self):
+        files = ["system.log"] + [f"{name}.log" for name in sorted(self.services)]
+        return f"{self.count} entries -> {self.directory.relative_to(REPO)}/ ({', '.join(files)})"
+
+
+def ssh_command(target, args, remote):
+    ssh = target.get("ssh", {})
+    host = args.host or ssh.get("host")
+    port = args.port or ssh.get("port", 22)
+    if not host:
+        fail(f"no address for {target['name']}; pass --host (e.g. --host 192.168.1.50)")
+    return ["ssh", "-p", str(port), *SSH_OPTIONS, f"{ssh.get('user', 'root')}@{host}", remote]
+
+
+def update_latest(target_dir, session_dir):
+    latest = target_dir / "latest"
+    if latest.is_symlink() or latest.exists():
+        latest.unlink()
+    latest.symlink_to(session_dir.name)
+
+
+def collect_live(target, args):
+    target_dir = DEVICE_LOG_ROOT / target["name"]
+    session = target_dir / datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    writer = LogWriter(session, flush_each=args.follow)
+    update_latest(target_dir, session)
+
+    remote = "journalctl -b -o json --no-pager" + (" -f" if args.follow else "")
+    command = ssh_command(target, args, remote)
+    if args.follow:
+        print(f"Following {target['name']} into {session.relative_to(REPO)}/ (Ctrl+C to stop)",
+              flush=True)
+
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True, errors="replace")
+    try:
+        for line in process.stdout:
+            writer.write_json_line(line)
+    except KeyboardInterrupt:
+        process.terminate()
+    finally:
+        writer.close()
+    status = process.wait()
+    if status not in (0, -15) and writer.count == 0:
+        fail(f"ssh returned {status}; is {target['name']} running and reachable?")
+    print(writer.summary())
+    return 0
+
+
+def convert_dumps(target, dumps_dir):
+    """Turns crash dumps (as saved by crash-dump) into readable logs under logs/TARGET/crashes/."""
+    journalctl = shutil.which("journalctl")
+    if not journalctl:
+        fail("journalctl not found; it's needed to read the saved journal files")
+
+    dumps = sorted(p for p in dumps_dir.iterdir() if p.is_dir() and DUMP_NAME.match(p.name))
+    if not dumps:
+        print(f"No crash dumps in {dumps_dir}")
+        return 0
+
+    out_root = DEVICE_LOG_ROOT / target["name"] / "crashes"
+    for dump in dumps:
+        writer = LogWriter(out_root / dump.name)
+        output = subprocess.run([journalctl, "--directory", str(dump / "journal"), "-o", "json",
+                                 "--no-pager"], capture_output=True, text=True, errors="replace")
+        for line in output.stdout.splitlines():
+            writer.write_json_line(line)
+        writer.close()
+        if (dump / "summary.txt").exists():
+            shutil.copy(dump / "summary.txt", writer.directory / "summary.txt")
+        print(writer.summary())
+    return 0
+
+
+def collect_crashes_over_ssh(target, args):
+    command = ssh_command(target, args, f"tar -C {CRASH_DIR_ON_DEVICE} -cf - .")
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / "crash.tar"
+        with archive.open("wb") as out:
+            if subprocess.run(command, stdout=out).returncode != 0:
+                fail(f"could not read {CRASH_DIR_ON_DEVICE} on {target['name']}")
+        extracted = Path(tmp) / "crash"
+        extracted.mkdir()
+        with tarfile.open(archive) as tar:
+            tar.extractall(extracted, filter="data")
+        return convert_dumps(target, extracted)
+
+
+def collect_logs(target, args):
+    if args.card:
+        card = Path(args.card).expanduser()
+        if not card.is_dir():
+            fail(f"{card} is not a directory; mount the card's 'crash' partition and pass its path")
+        return convert_dumps(target, card)
+    if args.crashes:
+        return collect_crashes_over_ssh(target, args)
+    return collect_live(target, args)
+
+
 def main():
     parser = argparse.ArgumentParser(prog="pv", description="pi-vision build tool")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -321,6 +510,20 @@ def main():
     stop = commands.add_parser("stop", help="stop a QEMU target started with run --background")
     stop.add_argument("target")
 
+    logs = commands.add_parser(
+        "logs", help="collect logs into logs/TARGET/",
+        description="Without options: this boot's journal over SSH, as system.log plus one "
+                    "file per pi-vision service, in logs/TARGET/<time>/ (logs/TARGET/latest "
+                    "points at it).")
+    logs.add_argument("target")
+    logs.add_argument("-f", "--follow", action="store_true", help="keep collecting until Ctrl+C")
+    logs.add_argument("--crashes", action="store_true",
+                      help="fetch saved crash dumps over SSH instead of the live journal")
+    logs.add_argument("--card", metavar="DIR",
+                      help="read crash dumps from the SD card's 'crash' partition mounted at DIR")
+    logs.add_argument("--host", help="device address (default: from the target file)")
+    logs.add_argument("--port", type=int, help="SSH port (default: from the target file)")
+
     args = parser.parse_args()
 
     if args.command == "targets":
@@ -336,6 +539,9 @@ def main():
 
     if args.command == "stop":
         return stop_qemu(get_target(args.target))
+
+    if args.command == "logs":
+        return collect_logs(get_target(args.target), args)
 
     if args.what == "desktop":
         check_desktop_environment()

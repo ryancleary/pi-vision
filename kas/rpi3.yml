@@ -15,4 +15,5 @@ local_conf_header:
     # No firmware rainbow screen, no kernel messages or cursor on HDMI.
     DISABLE_SPLASH = "1"
     CMDLINE:append = " quiet loglevel=3 vt.global_cursor_default=0"
+    WKS_FILE = "pivision-rpi3.wks"
 

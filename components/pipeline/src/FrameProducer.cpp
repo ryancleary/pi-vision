@@ -6,7 +6,11 @@
 #include <QTimer>
 #include <QtMath>
 
+#include <pivision/logging/Logging.h>
+
 namespace pivision::pipeline {
+
+using logging::lcCapture;
 
 namespace {
 
@@ -60,7 +64,9 @@ void FrameProducer::openSource()
     if (!m_source)
         return;
 
+    qCDebug(lcCapture) << "Opening" << nameOf(*m_source);
     if (!m_source->open()) {
+        qCWarning(lcCapture) << "Could not open" << nameOf(*m_source);
         emit failed(QStringLiteral("Could not open %1").arg(nameOf(*m_source)));
         return;
     }
@@ -75,6 +81,7 @@ void FrameProducer::openSource()
     // The name may only be known once open, e.g. which camera auto picked.
     emit opened(nameOf(*m_source));
     const double fps = m_source->nominalFps() > 0.0 ? m_source->nominalFps() : 30.0;
+    qCInfo(lcCapture, "Opened %s at %.1f fps", qPrintable(nameOf(*m_source)), fps);
     m_timer->start(qRound(1000.0 / fps));
 }
 
@@ -84,6 +91,8 @@ void FrameProducer::tick()
         // Stop reading but stay running, so a replacement source opens normally.
         m_timer->stop();
         m_source->close();
+        qCWarning(lcCapture) << nameOf(*m_source) << "stopped producing frames after"
+                             << m_frame.index << "frames";
         emit failed(QStringLiteral("%1 stopped producing frames").arg(nameOf(*m_source)));
         return;
     }

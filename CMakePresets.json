@@ -8,7 +8,8 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "$env{QT_ROOT_DIR};$env{OPENCV_ROOT_DIR}",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "PIVISION_DEV_LOG_FILE": "${sourceDir}/logs/desktop/pivision.log"
       }
     },
     {

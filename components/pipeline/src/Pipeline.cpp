@@ -2,9 +2,13 @@
 
 #include <utility>
 
+#include <pivision/logging/Logging.h>
+
 #include "FrameProducer.h"
 
 namespace pivision::pipeline {
+
+using logging::lcPipeline;
 
 Pipeline::Pipeline(std::unique_ptr<capture::FrameSource> source, QObject *parent)
     : QObject(parent)
@@ -25,8 +29,10 @@ Pipeline::~Pipeline() { stop(); }
 
 void Pipeline::start()
 {
-    if (!m_thread.isRunning())
+    if (!m_thread.isRunning()) {
+        qCDebug(lcPipeline) << "Starting capture thread";
         m_thread.start();
+    }
 }
 
 void Pipeline::stop()
@@ -34,6 +40,7 @@ void Pipeline::stop()
     if (!m_thread.isRunning())
         return;
 
+    qCDebug(lcPipeline) << "Stopping capture thread; dropped frames:" << droppedFrames();
     // Run stop() on the producer's own thread and wait for it, so the timer and
     // source are shut down by the thread that owns them.
     QMetaObject::invokeMethod(m_producer.get(), &FrameProducer::stop, Qt::BlockingQueuedConnection);
@@ -46,6 +53,7 @@ void Pipeline::setSource(std::unique_ptr<capture::FrameSource> source)
     if (!source)
         return;
 
+    qCInfo(lcPipeline) << "Switching source to" << QString::fromStdString(source->name());
     // Cut the old feed right away; the new one appears once it opens.
     setSourceName(QString::fromStdString(source->name()));
     setErrorString({});

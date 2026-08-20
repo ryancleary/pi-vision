@@ -9,4 +9,4 @@ Environment=QML_XHR_ALLOW_FILE_READ=1
 # Save the app's last log lines where the screen can read them.
 ExecStartPre=+/bin/sh -c 'journalctl -u pivision.service -n 15 --no-pager -o cat > /run/pivision-failed.log; chmod 644 /run/pivision-failed.log'
 ExecStart=/usr/bin/qml /usr/share/pivision/failed.qml
-
+ExecStopPost=+/usr/libexec/pivision/crash-dump %n

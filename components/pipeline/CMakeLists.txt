@@ -15,6 +15,7 @@ target_include_directories(pivision_pipeline
 
 target_link_libraries(pivision_pipeline
     PUBLIC pivision::capture Qt6::Core Qt6::Gui
+    PRIVATE pivision::logging
 )
 
 # Lets QML modules in other components refer to Pipeline (see display).

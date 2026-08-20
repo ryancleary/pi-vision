@@ -18,9 +18,10 @@ Environment=QT_QPA_EGLFS_INTEGRATION=eglfs_kms
 # as root (the splash is root's); "-" ignores errors if it isn't running.
 ExecStartPre=-+/usr/bin/psplash-write QUIT
 ExecStart=/usr/bin/pivision
+# After every stop: if it wasn't clean, save the journal to the crash partition.
+ExecStopPost=+/usr/libexec/pivision/crash-dump %n
 Restart=on-failure
 RestartSec=2
 
 [Install]
 WantedBy=multi-user.target
-
