@@ -1,6 +1,7 @@
 #ifndef PIVISION_CAPTURE_CAMERADISCOVERY_H
 #define PIVISION_CAPTURE_CAMERADISCOVERY_H
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,9 @@ struct CameraInfo {
 // A UVC webcam usually creates two nodes, one for video and one for metadata;
 // only the video node is returned.
 std::vector<CameraInfo> findCameras(const std::string &directory = "/dev");
+
+// Driver details for one device node, or nothing if it isn't a video capture node.
+std::optional<CameraInfo> describeCamera(const std::string &device);
 
 } // namespace pivision::capture
 

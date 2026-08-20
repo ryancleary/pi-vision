@@ -26,3 +26,9 @@ TEST(CameraDiscovery, IgnoresNodesThatAreNotCaptureDevices)
     EXPECT_TRUE(findCameras(dir.string()).empty());
     fs::remove_all(dir);
 }
+
+TEST(CameraDiscovery, DescribeRejectsMissingAndNonDeviceFiles)
+{
+    EXPECT_FALSE(pivision::capture::describeCamera("/nonexistent/video0").has_value());
+    EXPECT_FALSE(pivision::capture::describeCamera("/etc/hostname").has_value());
+}

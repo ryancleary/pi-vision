@@ -20,12 +20,21 @@ void FrameView::setPipeline(pivision::pipeline::Pipeline *pipeline)
     if (m_pipeline == pipeline)
         return;
 
-    disconnect(m_connection);
+    for (const auto &connection : std::as_const(m_connections))
+        disconnect(connection);
+    m_connections.clear();
+
     m_pipeline = pipeline;
     if (m_pipeline) {
-        m_connection = connect(m_pipeline.data(), &pivision::pipeline::Pipeline::frameAvailable,
-            this, &FrameView::onFrameAvailable);
+        using pivision::pipeline::Pipeline;
+        m_connections = {
+            connect(m_pipeline.data(), &Pipeline::frameAvailable, this, &FrameView::onFrameAvailable),
+            // A source switch or failure cuts the feed: show nothing rather than a frozen frame.
+            connect(m_pipeline.data(), &Pipeline::cleared, this, &FrameView::clearFrame),
+            connect(m_pipeline.data(), &Pipeline::failed, this, &FrameView::clearFrame),
+        };
     }
+    clearFrame();
     emit pipelineChanged();
 }
 
@@ -39,6 +48,13 @@ void FrameView::onFrameAvailable()
         m_frameDirty = true;
         update(); // schedules updatePaintNode() on the render thread
     }
+}
+
+void FrameView::clearFrame()
+{
+    m_frame = QImage();
+    m_frameDirty = true;
+    update();
 }
 
 QSGNode *FrameView::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)

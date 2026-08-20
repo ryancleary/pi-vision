@@ -2,6 +2,7 @@
 #define PIVISION_DISPLAY_FRAMEVIEW_H
 
 #include <QImage>
+#include <QList>
 #include <QMetaObject>
 #include <QPointer>
 #include <QQuickItem>
@@ -33,9 +34,11 @@ protected:
 
 private:
     void onFrameAvailable();
+    void clearFrame();
 
     QPointer<pivision::pipeline::Pipeline> m_pipeline;
-    QMetaObject::Connection m_connection;
+    // Connections to the current pipeline, dropped when it changes.
+    QList<QMetaObject::Connection> m_connections;
     QImage m_frame;
     bool m_frameDirty = false;
 };

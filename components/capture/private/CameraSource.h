@@ -23,6 +23,7 @@ public:
 
 private:
     std::string m_device;
+    std::string m_label; // "HD Webcam C270 (/dev/video0)" once opened
     CameraConfig m_config;
     cv::VideoCapture m_capture;
     double m_fps = 0.0;

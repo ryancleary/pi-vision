@@ -1,5 +1,7 @@
 #include "CameraSource.h"
 
+#include <pivision/capture/CameraDiscovery.h>
+
 #include <chrono>
 #include <utility>
 
@@ -26,6 +28,8 @@ bool CameraSource::open()
 
     const double reported = m_capture.get(cv::CAP_PROP_FPS);
     m_fps = reported > 0.0 ? reported : m_config.fps;
+    if (auto info = describeCamera(m_device))
+        m_label = info->name + " (" + m_device + ")";
     m_index = 0;
     return true;
 }
@@ -47,7 +51,7 @@ void CameraSource::close()
 
 std::string CameraSource::name() const
 {
-    return m_device;
+    return m_label.empty() ? m_device : m_label;
 }
 
 double CameraSource::nominalFps() const
