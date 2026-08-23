@@ -219,6 +219,10 @@ def qemu_command(target, args):
         command += ["-display", "none"]
     else:
         command += ["-device", "virtio-vga-gl", "-display", f"{args.display},gl=on"]
+        # A USB tablet reports absolute pointer positions, so the host cursor moves
+        # straight into the guest with no mouse grab (the default PS/2 mouse is
+        # relative: QEMU captures the cursor and it drifts). Same as Poky's runqemu.
+        command += ["-usb", "-device", "usb-tablet"]
     return command
 
 
