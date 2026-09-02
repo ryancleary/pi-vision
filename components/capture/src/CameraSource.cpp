@@ -8,55 +8,45 @@
 namespace pivision::capture {
 
 CameraSource::CameraSource(std::string device, const CameraConfig &config)
-    : m_device(std::move(device))
-    , m_config(config)
+    : device_(std::move(device))
+    , config_(config)
 {
 }
 
 bool CameraSource::open()
 {
     // V4L2 explicitly, so OpenCV never hands a device path to another backend.
-    if (!m_capture.open(m_device, cv::CAP_V4L2))
+    if (!capture_.open(device_, cv::CAP_V4L2))
         return false;
 
     // Format first, then size: the driver picks a size from the format's modes.
-    if (m_config.mjpeg)
-        m_capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    m_capture.set(cv::CAP_PROP_FRAME_WIDTH, m_config.width);
-    m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, m_config.height);
-    m_capture.set(cv::CAP_PROP_FPS, m_config.fps);
+    if (config_.mjpeg)
+        capture_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    capture_.set(cv::CAP_PROP_FRAME_WIDTH, config_.width);
+    capture_.set(cv::CAP_PROP_FRAME_HEIGHT, config_.height);
+    capture_.set(cv::CAP_PROP_FPS, config_.fps);
 
-    const double reported = m_capture.get(cv::CAP_PROP_FPS);
-    m_fps = reported > 0.0 ? reported : m_config.fps;
-    if (auto info = describeCamera(m_device))
-        m_label = info->name + " (" + m_device + ")";
-    m_index = 0;
+    const double reported = capture_.get(cv::CAP_PROP_FPS);
+    fps_ = reported > 0.0 ? reported : config_.fps;
+    if (auto info = describeCamera(device_))
+        label_ = info->name + " (" + device_ + ")";
+    index_ = 0;
     return true;
 }
 
 bool CameraSource::read(Frame &out)
 {
-    if (!m_capture.isOpened() || !m_capture.read(out.image) || out.image.empty())
+    if (!capture_.isOpened() || !capture_.read(out.image) || out.image.empty())
         return false;
 
-    out.index = m_index++;
+    out.index = index_++;
     out.captured = std::chrono::steady_clock::now();
     return true;
 }
 
 void CameraSource::close()
 {
-    m_capture.release();
-}
-
-std::string CameraSource::name() const
-{
-    return m_label.empty() ? m_device : m_label;
-}
-
-double CameraSource::nominalFps() const
-{
-    return m_fps > 0.0 ? m_fps : m_config.fps;
+    capture_.release();
 }
 
 } // namespace pivision::capture

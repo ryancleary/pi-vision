@@ -2,10 +2,7 @@
 
 #include <pivision/capture/SourceFactory.h>
 
-using pivision::capture::CameraConfig;
-using pivision::capture::Frame;
-using pivision::capture::makeAutoSource;
-using pivision::capture::TestPatternConfig;
+namespace pivision::capture {
 
 TEST(AutoSource, FallsBackToTestPatternWhenNoCameraOpens)
 {
@@ -37,3 +34,5 @@ TEST(AutoSource, ReadFailsBeforeOpenAndAfterClose)
     EXPECT_FALSE(source->read(frame));
     EXPECT_EQ(source->name(), "Auto");
 }
+
+} // namespace pivision::capture

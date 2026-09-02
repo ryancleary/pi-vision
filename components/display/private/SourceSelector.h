@@ -30,9 +30,9 @@ public:
         const capture::TestPatternConfig &pattern, QObject *parent = nullptr);
 
     static SourceSelector *create(QQmlEngine *, QJSEngine *engine);
-    inline static SourceSelector *s_instance = nullptr;
+    inline static SourceSelector *instance_ = nullptr;
 
-    QVariantList sources() const;
+    QVariantList sources() const { return sources_; }
 
     // Rescans for cameras, so ones plugged in after startup appear.
     Q_INVOKABLE void refresh();
@@ -43,10 +43,10 @@ signals:
     void sourcesChanged();
 
 private:
-    QPointer<pipeline::Pipeline> m_pipeline;
-    capture::CameraConfig m_camera;
-    capture::TestPatternConfig m_pattern;
-    QVariantList m_sources;
+    QPointer<pipeline::Pipeline> pipeline_;
+    capture::CameraConfig camera_;
+    capture::TestPatternConfig pattern_;
+    QVariantList sources_;
 };
 
 } // namespace pivision::display

@@ -12,22 +12,31 @@
 
 namespace pivision::display {
 
-// Draws the newest frame from a Pipeline, scaled to fit inside the item.
-// Frames are uploaded as scene-graph textures; no Qt Multimedia.
+// Draws the newest frame from a Pipeline, scaled to fit inside the item: the
+// raw camera image or the processed one. Several views can show the same
+// pipeline. Frames are uploaded as scene-graph textures; no Qt Multimedia.
 class FrameView : public QQuickItem {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(pivision::pipeline::Pipeline *pipeline READ pipeline WRITE setPipeline NOTIFY
             pipelineChanged)
+    Q_PROPERTY(Stream stream READ stream WRITE setStream NOTIFY streamChanged)
 
 public:
+    enum Stream { Processed, Raw };
+    Q_ENUM(Stream)
+
     explicit FrameView(QQuickItem *parent = nullptr);
 
-    pivision::pipeline::Pipeline *pipeline() const;
+    pivision::pipeline::Pipeline *pipeline() const { return pipeline_; }
     void setPipeline(pivision::pipeline::Pipeline *pipeline);
+
+    Stream stream() const { return stream_; }
+    void setStream(Stream stream);
 
 signals:
     void pipelineChanged();
+    void streamChanged();
 
 protected:
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data) override;
@@ -36,11 +45,12 @@ private:
     void onFrameAvailable();
     void clearFrame();
 
-    QPointer<pivision::pipeline::Pipeline> m_pipeline;
+    QPointer<pivision::pipeline::Pipeline> pipeline_;
     // Connections to the current pipeline, dropped when it changes.
-    QList<QMetaObject::Connection> m_connections;
-    QImage m_frame;
-    bool m_frameDirty = false;
+    QList<QMetaObject::Connection> connections_;
+    Stream stream_ = Processed;
+    QImage frame_;
+    bool frameDirty_ = false;
 };
 
 } // namespace pivision::display

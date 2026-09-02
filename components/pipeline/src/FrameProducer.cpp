@@ -1,16 +1,13 @@
 #include "FrameProducer.h"
 
+#include <chrono>
 #include <utility>
 
-#include <QImage>
 #include <QTimer>
-#include <QtMath>
 
 #include <pivision/logging/Logging.h>
 
 namespace pivision::pipeline {
-
-using logging::lcCapture;
 
 namespace {
 
@@ -22,9 +19,9 @@ namespace {
 } // namespace
 
 FrameProducer::FrameProducer(
-    std::unique_ptr<capture::FrameSource> source, LatestFrameBuffer &buffer)
-    : m_source(std::move(source))
-    , m_buffer(buffer)
+    std::unique_ptr<capture::FrameSource> source, RawFrameBuffer &buffer)
+    : source_(std::move(source))
+    , buffer_(buffer)
 {
 }
 
@@ -32,79 +29,81 @@ FrameProducer::~FrameProducer() = default;
 
 void FrameProducer::start()
 {
-    m_running = true;
+    running_ = true;
     openSource();
 }
 
 void FrameProducer::stop()
 {
-    m_running = false;
-    if (m_timer)
-        m_timer->stop();
-    if (m_source)
-        m_source->close();
+    running_ = false;
+    if (timer_)
+        timer_->stop();
+    if (source_)
+        source_->close();
 }
 
 void FrameProducer::replaceSource(std::unique_ptr<capture::FrameSource> source)
 {
-    if (m_timer)
-        m_timer->stop();
-    if (m_source)
-        m_source->close();
+    if (timer_)
+        timer_->stop();
+    if (source_)
+        source_->close();
 
-    m_source = std::move(source);
-    m_buffer.take(); // drop any frame from the old source
+    source_ = std::move(source);
+    ++generation_;
+    buffer_.take(); // drop any frame from the old source
 
-    if (m_running)
+    if (running_)
         openSource();
 }
 
 void FrameProducer::openSource()
 {
-    if (!m_source)
+    if (!source_)
         return;
 
-    qCDebug(lcCapture) << "Opening" << nameOf(*m_source);
-    if (!m_source->open()) {
-        qCWarning(lcCapture) << "Could not open" << nameOf(*m_source);
-        emit failed(QStringLiteral("Could not open %1").arg(nameOf(*m_source)));
+    qCDebug(logging::lcCapture) << "Opening" << nameOf(*source_);
+    if (!source_->open()) {
+        qCWarning(logging::lcCapture) << "Could not open" << nameOf(*source_);
+        emit failed(QStringLiteral("Could not open %1").arg(nameOf(*source_)));
         return;
     }
 
     // Created here rather than in the constructor so the timer belongs to this thread.
-    if (!m_timer) {
-        m_timer = new QTimer(this);
-        m_timer->setTimerType(Qt::PreciseTimer);
-        connect(m_timer, &QTimer::timeout, this, &FrameProducer::tick);
+    if (!timer_) {
+        timer_ = new QTimer(this);
+        timer_->setTimerType(Qt::PreciseTimer);
+        connect(timer_, &QTimer::timeout, this, &FrameProducer::tick);
     }
 
     // The name may only be known once open, e.g. which camera auto picked.
-    emit opened(nameOf(*m_source));
-    const double fps = m_source->nominalFps() > 0.0 ? m_source->nominalFps() : 30.0;
-    qCInfo(lcCapture, "Opened %s at %.1f fps", qPrintable(nameOf(*m_source)), fps);
-    m_timer->start(qRound(1000.0 / fps));
+    emit opened(nameOf(*source_));
+    const double fps = source_->nominalFps() > 0.0 ? source_->nominalFps() : 30.0;
+    qCInfo(logging::lcCapture, "Opened %s at %.1f fps", qPrintable(nameOf(*source_)), fps);
+    framesRead_ = 0;
+    // Read once per frame period: 1/fps seconds, as whole milliseconds for QTimer.
+    timer_->start(std::chrono::round<std::chrono::milliseconds>(std::chrono::duration<double>(1.0 / fps)));
 }
 
 void FrameProducer::tick()
 {
-    if (!m_source->read(m_frame) || m_frame.image.type() != CV_8UC3) {
+    if (!source_->read(frame_) || frame_.image.type() != CV_8UC3) {
         // Stop reading but stay running, so a replacement source opens normally.
-        m_timer->stop();
-        m_source->close();
-        qCWarning(lcCapture) << nameOf(*m_source) << "stopped producing frames after"
-                             << m_frame.index << "frames";
-        emit failed(QStringLiteral("%1 stopped producing frames").arg(nameOf(*m_source)));
+        timer_->stop();
+        source_->close();
+        qCWarning(logging::lcCapture) << nameOf(*source_) << "stopped producing frames after"
+                             << framesRead_ << "frames";
+        emit failed(QStringLiteral("%1 stopped producing frames").arg(nameOf(*source_)));
         return;
     }
 
-    // Wrap the BGR pixels without copying, then deep-copy once so the QImage
-    // owns its data before it leaves this thread.
-    const cv::Mat &bgr = m_frame.image;
-    const QImage view(
-        bgr.data, bgr.cols, bgr.rows, static_cast<qsizetype>(bgr.step), QImage::Format_BGR888);
-
-    if (m_buffer.put({ view.copy(), m_frame.index, m_frame.captured }))
+    // Hand the frame over without copying pixels. Moving it out leaves frame_
+    // empty, so the next read allocates fresh memory instead of overwriting
+    // pixels the processing thread may still be using.
+    ++framesRead_;
+    if (buffer_.put({ std::move(frame_), generation_ }))
         emit frameAvailable();
+    frame_ = {};
 }
 
 } // namespace pivision::pipeline

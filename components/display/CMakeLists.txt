@@ -8,8 +8,10 @@ qt_add_qml_module(pivision_display
         include/pivision/display/Registration.h
         private/FrameView.h
         private/PipelineForeign.h
+        private/ProcessingControl.h
         private/SourceSelector.h
         src/FrameView.cpp
+        src/ProcessingControl.cpp
         src/Registration.cpp
         src/SourceSelector.cpp
 )

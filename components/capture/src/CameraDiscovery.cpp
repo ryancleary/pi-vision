@@ -1,11 +1,11 @@
 #include <pivision/capture/CameraDiscovery.h>
 
 #include <algorithm>
-#include <cctype>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <optional>
+#include <regex>
 #include <system_error>
 
 #include <fcntl.h>
@@ -17,17 +17,14 @@ namespace pivision::capture {
 
 namespace {
 
-    // Number after "video" in a device name, or -1 if the name doesn't match.
-    int deviceNumber(const std::string &filename)
+    // The N in a device name "videoN", or nothing if the name has another form.
+    std::optional<int> deviceNumber(const std::string &filename)
     {
-        constexpr const char prefix[] = "video";
-        if (filename.rfind(prefix, 0) != 0 || filename.size() == sizeof(prefix) - 1)
-            return -1;
-        const std::string digits = filename.substr(sizeof(prefix) - 1);
-        if (!std::all_of(digits.begin(), digits.end(),
-                [](unsigned char c) { return std::isdigit(c) != 0; }))
-            return -1;
-        return std::atoi(digits.c_str());
+        static const std::regex pattern("^video([0-9]+)$");
+        std::smatch match;
+        if (!std::regex_match(filename, match, pattern))
+            return std::nullopt;
+        return std::stoi(match[1].str());
     }
 
 } // namespace
@@ -64,12 +61,12 @@ std::vector<CameraInfo> findCameras(const std::string &directory)
 
     std::error_code error;
     for (const auto &entry : std::filesystem::directory_iterator(directory, error)) {
-        const int number = deviceNumber(entry.path().filename().string());
-        if (number < 0)
+        const auto number = deviceNumber(entry.path().filename().string());
+        if (!number)
             continue;
 
         if (auto info = describeCamera(entry.path().string()))
-            found.emplace_back(number, std::move(*info));
+            found.emplace_back(*number, std::move(*info));
     }
 
     // video2 before video10: sort by number, not by name.

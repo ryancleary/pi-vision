@@ -7,8 +7,7 @@
 
 #include <pivision/pipeline/LatestFrameBuffer.h>
 
-using pivision::pipeline::DisplayFrame;
-using pivision::pipeline::LatestFrameBuffer;
+namespace pivision::pipeline {
 
 namespace {
 
@@ -89,3 +88,5 @@ TEST(LatestFrameBuffer, ConcurrentProducerAndConsumerKeepOrderAndAccountForEvery
     // Every frame was either taken or replaced; none disappeared.
     EXPECT_EQ(taken + buffer.droppedCount(), frameCount);
 }
+
+} // namespace pivision::pipeline

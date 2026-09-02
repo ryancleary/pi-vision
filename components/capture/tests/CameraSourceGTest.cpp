@@ -2,9 +2,7 @@
 
 #include <pivision/capture/SourceFactory.h>
 
-using pivision::capture::CameraConfig;
-using pivision::capture::Frame;
-using pivision::capture::makeCameraSource;
+namespace pivision::capture {
 
 // Real capture needs hardware, so CI only covers what happens without a camera.
 
@@ -25,3 +23,5 @@ TEST(CameraSource, ReportsDeviceAndRequestedRate)
     EXPECT_EQ(source->name(), "/dev/video3");
     EXPECT_DOUBLE_EQ(source->nominalFps(), 15.0);
 }
+
+} // namespace pivision::capture

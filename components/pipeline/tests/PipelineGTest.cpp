@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <functional>
+
 #include <QElapsedTimer>
 #include <QImage>
 #include <QSignalSpy>
@@ -7,137 +9,168 @@
 
 #include <pivision/capture/SourceFactory.h>
 #include <pivision/pipeline/Pipeline.h>
+#include <pivision/pipeline/StageConfig.h>
 #include <pivision/testsupport/QtEventLoopFixture.h>
 
-using pivision::capture::makeAutoSource;
-using pivision::capture::makeCameraSource;
-using pivision::capture::makeTestPatternSource;
-using pivision::capture::TestPatternConfig;
-using pivision::pipeline::Pipeline;
+namespace pivision::pipeline {
 
-using PipelineTest = pivision::testsupport::QtEventLoopFixture;
+// Tests here need a Qt event loop: signals cross threads.
+class PipelineTest : public testsupport::QtEventLoopFixture { };
 
 namespace {
 
-TestPatternConfig smallConfig()
+capture::TestPatternConfig patternOfWidth(int width)
 {
-    TestPatternConfig config;
-    config.width = 320;
-    config.height = 240;
+    capture::TestPatternConfig config;
+    config.width = width;
+    config.height = width * 3 / 4;
     config.fps = 60.0;
     return config;
 }
 
-TestPatternConfig patternOfWidth(int width)
-{
-    TestPatternConfig config = smallConfig();
-    config.width = width;
-    config.height = width * 3 / 4;
-    return config;
-}
-
-// Waits until a frame of `width` arrives, skipping any older frames.
-bool waitForFrameOfWidth(Pipeline &pipeline, int width, int timeoutMs = 2000)
+// Waits until a frame matching `accept` is the latest one.
+bool waitForFrame(Pipeline &pipeline, const std::function<bool(const DisplayFrame &)> &accept,
+    int timeoutMs = 3000)
 {
     QSignalSpy available(&pipeline, &Pipeline::frameAvailable);
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < timeoutMs) {
-        if (auto frame = pipeline.takeLatestFrame(); frame && frame->image.width() == width)
+        if (auto frame = pipeline.latestFrame(); frame && accept(*frame))
             return true;
         available.wait(100);
     }
     return false;
 }
 
+bool waitForRawWidth(Pipeline &pipeline, int width)
+{
+    return waitForFrame(pipeline, [width](const DisplayFrame &f) { return f.raw.width() == width; });
+}
+
+StageConfig stage(const char *id, bool enabled)
+{
+    StageConfig config;
+    config.id = QString::fromLatin1(id);
+    config.enabled = enabled;
+    return config;
+}
+
 } // namespace
 
-TEST_F(PipelineTest, DeliversFramesFromCaptureThread)
+TEST_F(PipelineTest, DeliversRawAndProcessedFramesFromTheSameCapture)
 {
-    Pipeline pipeline(makeTestPatternSource(smallConfig()));
-    QSignalSpy available(&pipeline, &Pipeline::frameAvailable);
-
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.start();
-    ASSERT_TRUE(available.wait(2000));
+    ASSERT_TRUE(waitForRawWidth(pipeline, 320));
 
-    auto frame = pipeline.takeLatestFrame();
-    ASSERT_TRUE(frame.has_value());
-    EXPECT_EQ(frame->image.width(), 320);
-    EXPECT_EQ(frame->image.height(), 240);
-    EXPECT_EQ(frame->image.format(), QImage::Format_BGR888);
+    const auto frame = pipeline.latestFrame();
+    EXPECT_EQ(frame->raw.height(), 240);
+    EXPECT_EQ(frame->raw.format(), QImage::Format_BGR888);
+    // No stages enabled and no scaling: processed is the raw image itself.
+    EXPECT_EQ(frame->processed, frame->raw);
+    EXPECT_TRUE(frame->timings.empty());
 }
 
-TEST_F(PipelineTest, ReportsFailureWhenSourceCannotOpen)
+TEST_F(PipelineTest, ProcessedFramesAreScaledDownToTheProcessSize)
 {
-    TestPatternConfig config = smallConfig();
-    config.width = 0;
-    Pipeline pipeline(makeTestPatternSource(config));
-    QSignalSpy failed(&pipeline, &Pipeline::failed);
-
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(640)));
+    pipeline.setProcessSize(QSize(320, 240));
     pipeline.start();
-    ASSERT_TRUE(failed.wait(2000));
-    EXPECT_FALSE(pipeline.takeLatestFrame().has_value());
+    ASSERT_TRUE(waitForRawWidth(pipeline, 640));
+
+    const auto frame = pipeline.latestFrame();
+    EXPECT_EQ(frame->processed.size(), QSize(320, 240));
+    EXPECT_EQ(frame->raw.size(), QSize(640, 480)); // raw stays full size
 }
 
-TEST_F(PipelineTest, StopIsSafeWithoutStartAndWhenRepeated)
+TEST_F(PipelineTest, SmallFramesAreNotScaledUp)
 {
-    Pipeline pipeline(makeTestPatternSource(smallConfig()));
-    pipeline.stop();
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(160)));
+    pipeline.setProcessSize(QSize(320, 240));
     pipeline.start();
-    pipeline.stop();
-    pipeline.stop();
-    SUCCEED();
+    ASSERT_TRUE(waitForRawWidth(pipeline, 160));
+    EXPECT_EQ(pipeline.latestFrame()->processed.size(), QSize(160, 120));
+}
+
+TEST_F(PipelineTest, EnabledStagesShapeTheProcessedFrame)
+{
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
+    pipeline.setStages({ stage("blur", true), stage("edges", true) });
+    pipeline.start();
+
+    ASSERT_TRUE(waitForFrame(pipeline, [](const DisplayFrame &f) {
+        return f.processed.format() == QImage::Format_Grayscale8;
+    }));
+    const auto timings = pipeline.latestFrame()->timings;
+    ASSERT_EQ(timings.size(), 2u);
+    EXPECT_EQ(timings[0].id, "blur");
+    EXPECT_EQ(timings[1].id, "edges");
+}
+
+TEST_F(PipelineTest, StagesCanBeToggledWhileRunning)
+{
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
+    pipeline.setStages({ stage("grayscale", false) });
+    pipeline.start();
+    ASSERT_TRUE(waitForFrame(
+        pipeline, [](const DisplayFrame &f) { return f.processed.format() == QImage::Format_BGR888; }));
+
+    pipeline.setStageEnabled(QStringLiteral("grayscale"), true);
+    EXPECT_TRUE(waitForFrame(pipeline,
+        [](const DisplayFrame &f) { return f.processed.format() == QImage::Format_Grayscale8; }));
+
+    pipeline.setStageEnabled(QStringLiteral("grayscale"), false);
+    EXPECT_TRUE(waitForFrame(
+        pipeline, [](const DisplayFrame &f) { return f.processed.format() == QImage::Format_BGR888; }));
 }
 
 TEST_F(PipelineTest, SwitchingSourceDeliversFramesFromTheNewSource)
 {
-    Pipeline pipeline(makeTestPatternSource(patternOfWidth(320)));
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.start();
-    ASSERT_TRUE(waitForFrameOfWidth(pipeline, 320));
+    ASSERT_TRUE(waitForRawWidth(pipeline, 320));
 
     QSignalSpy cleared(&pipeline, &Pipeline::cleared);
-    pipeline.setSource(makeTestPatternSource(patternOfWidth(160)));
+    pipeline.setSource(capture::makeTestPatternSource(patternOfWidth(160)));
     EXPECT_EQ(cleared.count(), 1);
-    EXPECT_TRUE(waitForFrameOfWidth(pipeline, 160));
+    EXPECT_FALSE(pipeline.latestFrame().has_value()); // the old feed is cut at once
+    EXPECT_TRUE(waitForRawWidth(pipeline, 160));
     EXPECT_TRUE(pipeline.errorString().isEmpty());
 }
 
 TEST_F(PipelineTest, SwitchingToSourceThatFailsReportsErrorAndStopsFrames)
 {
-    Pipeline pipeline(makeTestPatternSource(smallConfig()));
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.start();
-    ASSERT_TRUE(waitForFrameOfWidth(pipeline, 320));
+    ASSERT_TRUE(waitForRawWidth(pipeline, 320));
 
     QSignalSpy failed(&pipeline, &Pipeline::failed);
-    pipeline.setSource(makeCameraSource("/nonexistent/video0"));
+    pipeline.setSource(capture::makeCameraSource("/nonexistent/video0"));
     ASSERT_TRUE(failed.wait(2000));
     EXPECT_FALSE(pipeline.errorString().isEmpty());
 
-    // The old feed is cut: nothing new arrives after the failure.
-    pipeline.takeLatestFrame();
     QSignalSpy available(&pipeline, &Pipeline::frameAvailable);
-    QTest::qWait(200);
+    QTest::qWait(250);
     EXPECT_EQ(available.count(), 0);
-    EXPECT_FALSE(pipeline.takeLatestFrame().has_value());
+    EXPECT_FALSE(pipeline.latestFrame().has_value());
 }
 
 TEST_F(PipelineTest, RecoversWhenAWorkingSourceIsSetAfterAFailure)
 {
-    Pipeline pipeline(makeCameraSource("/nonexistent/video0"));
+    Pipeline pipeline(capture::makeCameraSource("/nonexistent/video0"));
     QSignalSpy failed(&pipeline, &Pipeline::failed);
     pipeline.start();
     ASSERT_TRUE(failed.wait(2000));
 
-    pipeline.setSource(makeTestPatternSource(smallConfig()));
-    EXPECT_TRUE(waitForFrameOfWidth(pipeline, 320));
+    pipeline.setSource(capture::makeTestPatternSource(patternOfWidth(320)));
+    EXPECT_TRUE(waitForRawWidth(pipeline, 320));
     EXPECT_TRUE(pipeline.errorString().isEmpty());
 }
 
 TEST_F(PipelineTest, SourceNameFollowsTheSourceThatOpened)
 {
-    // Auto with no cameras falls back to the test pattern; the name only
-    // becomes known once the source opens on the capture thread.
-    Pipeline pipeline(makeAutoSource(std::vector<std::string> {}, {}, smallConfig()));
+    Pipeline pipeline(capture::makeAutoSource(std::vector<std::string> {}, {}, patternOfWidth(320)));
     EXPECT_EQ(pipeline.sourceName(), QStringLiteral("Auto"));
 
     QSignalSpy nameChanged(&pipeline, &Pipeline::sourceNameChanged);
@@ -148,8 +181,20 @@ TEST_F(PipelineTest, SourceNameFollowsTheSourceThatOpened)
 
 TEST_F(PipelineTest, SourceSetBeforeStartIsTheOneThatRuns)
 {
-    Pipeline pipeline(makeTestPatternSource(patternOfWidth(320)));
-    pipeline.setSource(makeTestPatternSource(patternOfWidth(160)));
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
+    pipeline.setSource(capture::makeTestPatternSource(patternOfWidth(160)));
     pipeline.start();
-    EXPECT_TRUE(waitForFrameOfWidth(pipeline, 160));
+    EXPECT_TRUE(waitForRawWidth(pipeline, 160));
 }
+
+TEST_F(PipelineTest, StopIsSafeWithoutStartAndWhenRepeated)
+{
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
+    pipeline.stop();
+    pipeline.start();
+    pipeline.stop();
+    pipeline.stop();
+    SUCCEED();
+}
+
+} // namespace pivision::pipeline

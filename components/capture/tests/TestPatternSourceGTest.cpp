@@ -4,9 +4,7 @@
 
 #include <pivision/capture/SourceFactory.h>
 
-using pivision::capture::Frame;
-using pivision::capture::makeTestPatternSource;
-using pivision::capture::TestPatternConfig;
+namespace pivision::capture {
 
 namespace {
 
@@ -93,3 +91,5 @@ TEST(TestPatternSource, OpenFailsForInvalidFrameRate)
     config.fps = 0.0;
     EXPECT_FALSE(makeTestPatternSource(config)->open());
 }
+
+} // namespace pivision::capture

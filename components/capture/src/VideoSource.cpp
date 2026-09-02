@@ -7,58 +7,53 @@
 namespace pivision::capture {
 
 VideoSource::VideoSource(std::string location)
-    : m_location(std::move(location))
+    : location_(std::move(location))
 {
 }
 
 bool VideoSource::open()
 {
-    if (!m_capture.open(m_location))
+    if (!capture_.open(location_))
         return false;
 
-    const double reported = m_capture.get(cv::CAP_PROP_FPS);
-    m_fps = reported > 0.0 ? reported : 30.0;
-    m_isFile = m_location.find("://") == std::string::npos;
-    m_index = 0;
+    const double reported = capture_.get(cv::CAP_PROP_FPS);
+    fps_ = reported > 0.0 ? reported : 30.0;
+    isFile_ = location_.find("://") == std::string::npos;
+    index_ = 0;
     return true;
 }
 
 bool VideoSource::read(Frame &out)
 {
-    if (!m_capture.isOpened())
+    if (!capture_.isOpened())
         return false;
 
-    bool ok = m_capture.read(out.image) && !out.image.empty();
-    if (!ok && m_isFile) {
+    bool ok = capture_.read(out.image) && !out.image.empty();
+    if (!ok && isFile_) {
         // End of file: loop by reopening. Seeking back to frame 0 isn't reliable
         // across OpenCV backends (GStreamer can't always report its position),
         // but reopening works with all of them.
-        ok = m_capture.open(m_location) && m_capture.read(out.image) && !out.image.empty();
+        ok = capture_.open(location_) && capture_.read(out.image) && !out.image.empty();
     }
     if (!ok)
         return false;
 
-    out.index = m_index++;
+    out.index = index_++;
     out.captured = std::chrono::steady_clock::now();
     return true;
 }
 
 void VideoSource::close()
 {
-    m_capture.release();
+    capture_.release();
 }
 
 std::string VideoSource::name() const
 {
     // Show a file by its name; show a URL in full.
-    if (m_location.find("://") != std::string::npos)
-        return m_location;
-    return std::filesystem::path(m_location).filename().string();
-}
-
-double VideoSource::nominalFps() const
-{
-    return m_fps;
+    if (location_.find("://") != std::string::npos)
+        return location_;
+    return std::filesystem::path(location_).filename().string();
 }
 
 } // namespace pivision::capture

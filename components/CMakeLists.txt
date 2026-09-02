@@ -4,6 +4,7 @@ endif()
 
 add_subdirectory(logging)
 add_subdirectory(capture)
+add_subdirectory(processing)
 add_subdirectory(pipeline)
 add_subdirectory(display)
 

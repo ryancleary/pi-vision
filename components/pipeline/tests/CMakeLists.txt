@@ -2,8 +2,8 @@ pivision_add_tests(pipeline
     SOURCES
         LatestFrameBufferGTest.cpp
         PipelineGTest.cpp
+        StageConfigGTest.cpp
     LIBRARIES
         pivision::testsupport
         Qt6::Test
 )
-

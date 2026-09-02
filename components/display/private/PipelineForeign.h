@@ -20,14 +20,14 @@ struct PipelineForeign {
 public:
     static pivision::pipeline::Pipeline *create(QQmlEngine *, QJSEngine *engine)
     {
-        Q_ASSERT(s_instance);
-        Q_ASSERT(engine->thread() == s_instance->thread());
+        Q_ASSERT(instance_);
+        Q_ASSERT(engine->thread() == instance_->thread());
         // C++ owns the object; stop the QML engine from deleting it.
-        QJSEngine::setObjectOwnership(s_instance, QJSEngine::CppOwnership);
-        return s_instance;
+        QJSEngine::setObjectOwnership(instance_, QJSEngine::CppOwnership);
+        return instance_;
     }
 
-    inline static pivision::pipeline::Pipeline *s_instance = nullptr;
+    inline static pivision::pipeline::Pipeline *instance_ = nullptr;
 };
 
 } // namespace pivision::display

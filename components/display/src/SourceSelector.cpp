@@ -9,8 +9,6 @@
 
 namespace pivision::display {
 
-using logging::lcDisplay;
-
 namespace {
 
     const QString kTestPatternSpec = QStringLiteral("test-pattern");
@@ -25,23 +23,21 @@ namespace {
 SourceSelector::SourceSelector(pipeline::Pipeline *pipeline, const capture::CameraConfig &camera,
     const capture::TestPatternConfig &pattern, QObject *parent)
     : QObject(parent)
-    , m_pipeline(pipeline)
-    , m_camera(camera)
-    , m_pattern(pattern)
+    , pipeline_(pipeline)
+    , camera_(camera)
+    , pattern_(pattern)
 {
     refresh();
 }
 
 SourceSelector *SourceSelector::create(QQmlEngine *, QJSEngine *engine)
 {
-    Q_ASSERT(s_instance);
-    Q_ASSERT(engine->thread() == s_instance->thread());
+    Q_ASSERT(instance_);
+    Q_ASSERT(engine->thread() == instance_->thread());
     // C++ owns the object; stop the QML engine from deleting it.
-    QJSEngine::setObjectOwnership(s_instance, QJSEngine::CppOwnership);
-    return s_instance;
+    QJSEngine::setObjectOwnership(instance_, QJSEngine::CppOwnership);
+    return instance_;
 }
-
-QVariantList SourceSelector::sources() const { return m_sources; }
 
 void SourceSelector::refresh()
 {
@@ -53,9 +49,9 @@ void SourceSelector::refresh()
     }
     sources.append(entry(QStringLiteral("Test pattern"), kTestPatternSpec));
 
-    qCDebug(lcDisplay) << "Found" << sources.size() - 1 << "camera(s)";
-    if (sources != m_sources) {
-        m_sources = sources;
+    qCDebug(logging::lcDisplay) << "Found" << sources.size() - 1 << "camera(s)";
+    if (sources != sources_) {
+        sources_ = sources;
         emit sourcesChanged();
     }
 }
@@ -63,17 +59,17 @@ void SourceSelector::refresh()
 void SourceSelector::select(const QString &spec)
 {
     QString trimmed = spec.trimmed();
-    if (!m_pipeline || trimmed.isEmpty())
+    if (!pipeline_ || trimmed.isEmpty())
         return;
     // Typed paths often start with ~; nothing else expands it here.
     if (trimmed.startsWith(QStringLiteral("~/")))
         trimmed.replace(0, 1, QDir::homePath());
 
-    qCInfo(lcDisplay) << "Source selected:" << trimmed;
+    qCInfo(logging::lcDisplay) << "Source selected:" << trimmed;
     if (trimmed == kTestPatternSpec)
-        m_pipeline->setSource(capture::makeTestPatternSource(m_pattern));
+        pipeline_->setSource(capture::makeTestPatternSource(pattern_));
     else
-        m_pipeline->setSource(capture::makeSourceFromSpec(trimmed.toStdString(), m_camera));
+        pipeline_->setSource(capture::makeSourceFromSpec(trimmed.toStdString(), camera_));
 }
 
 } // namespace pivision::display

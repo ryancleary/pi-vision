@@ -1,0 +1,34 @@
+{
+  "stages": [
+  {
+    "id": "blur",
+    "label": "Blur",
+    "enabled": false,
+    "parameters": [
+          { "name": "size", "label": "Kernel size", "value": 5, "min": 3, "max": 15, "step": 2 }
+        ]
+    },
+    {
+      "id": "clahe",
+      "label": "Contrast (CLAHE)",
+      "enabled": false,
+      "parameters": [
+        { "name": "clipLimit", "label": "Clip limit", "value": 2.0, "min": 1.0, "max": 8.0, "step": 0.5 }
+      ]
+    },
+    {
+      "id": "grayscale",
+      "label": "Grayscale",
+      "enabled": false
+    },
+    {
+      "id": "edges",
+      "label": "Edges",
+      "enabled": false,
+      "parameters": [
+        { "name": "low", "label": "Low threshold", "value": 50, "min": 0, "max": 255, "step": 5 },
+        { "name": "high", "label": "High threshold", "value": 150, "min": 0, "max": 255, "step": 5 }
+      ]
+    }
+  ]
+}
