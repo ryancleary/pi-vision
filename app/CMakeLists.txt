@@ -2,11 +2,17 @@ qt_add_executable(pivision
     src/main.cpp
 )
 
+# Shared colors and sizes, used as "Theme" from any QML file in the module.
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(pivision
     URI PiVision
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/Theme.qml
+        qml/PanelButton.qml
+        qml/CompareView.qml
         qml/StageControl.qml
 )
 

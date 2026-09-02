@@ -41,6 +41,14 @@ signals:
 protected:
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data) override;
 
+    // Refit the image when the item is resized, not only when the next frame
+    // arrives, so it follows the compare view's animations smoothly.
+    void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override
+    {
+        QQuickItem::geometryChange(newGeometry, oldGeometry);
+        update();
+    }
+
 private:
     void onFrameAvailable();
     void clearFrame();
