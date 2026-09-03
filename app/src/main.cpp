@@ -30,6 +30,22 @@ int usageError(const QString &message)
     return EXIT_FAILURE;
 }
 
+// Where captures go unless --capture-dir says otherwise, and how many to keep.
+// Development builds: a folder in the repo, all kept. On the device: the crash
+// partition, which is small (64 MB, shared with crash dumps), so only the newest 10.
+struct CaptureDefaults {
+    QString directory;
+    int keep;
+};
+
+CaptureDefaults captureDefaults()
+{
+    const QString devDirectory = QStringLiteral(PIVISION_DEV_CAPTURE_DIR);
+    if (!devDirectory.isEmpty())
+        return { devDirectory, 0 };
+    return { QStringLiteral("/var/crash/captures"), 10 };
+}
+
 std::optional<QSize> parseSize(const QString &text)
 {
     static const QRegularExpression pattern(QStringLiteral("^(\\d+)x(\\d+)$"));
@@ -69,10 +85,18 @@ int main(int argc, char *argv[])
                     ? QString()
                     : QStringLiteral(" Default: %1").arg(QStringLiteral(PIVISION_DEV_LOG_FILE))),
         QStringLiteral("file"), QStringLiteral(PIVISION_DEV_LOG_FILE));
+    const CaptureDefaults captures = captureDefaults();
+    const QCommandLineOption captureDirOption(QStringLiteral("capture-dir"),
+        QStringLiteral("Save captures in <dir> (default %1).").arg(captures.directory),
+        QStringLiteral("dir"), captures.directory);
+    const QCommandLineOption captureKeepOption(QStringLiteral("capture-keep"),
+        QStringLiteral("Keep only the newest <n> captures; 0 keeps all (default %1).")
+            .arg(captures.keep),
+        QStringLiteral("n"), QString::number(captures.keep));
     const QCommandLineOption verboseOption(QStringLiteral("verbose"),
         QStringLiteral("Include debug messages in the log."));
     parser.addOptions({ cameraOption, patternOption, sizeOption, processSizeOption, logFileOption,
-        verboseOption });
+        captureDirOption, captureKeepOption, verboseOption });
     parser.addPositionalArgument(QStringLiteral("source"),
         QStringLiteral("Video file, stream URL or /dev/video* device."), QStringLiteral("[source]"));
     parser.process(app);
@@ -92,6 +116,11 @@ int main(int argc, char *argv[])
     const auto processSize = parseSize(parser.value(processSizeOption));
     if (!processSize)
         return usageError(QStringLiteral("--process-size must look like 320x240"));
+
+    bool keepIsNumber = false;
+    const int captureKeep = parser.value(captureKeepOption).toInt(&keepIsNumber);
+    if (!keepIsNumber || captureKeep < 0)
+        return usageError(QStringLiteral("--capture-keep must be 0 or more"));
 
     // The processing stages ship inside the app; a bad file is a build mistake.
     QFile stageFile(QStringLiteral(":/pivision/config/stages.json"));
@@ -143,6 +172,8 @@ int main(int argc, char *argv[])
     pivision::display::exposeSourceSelector(&pipeline, camera, pattern);
     pivision::display::exposeProcessingControl(&pipeline, *stages);
     pivision::display::exposeMetricsMonitor(&pipeline, *stages);
+    pivision::display::exposeCaptures(&pipeline, parser.value(captureDirOption), captureKeep,
+        QStringLiteral(PIVISION_VERSION));
 
     QQmlApplicationEngine engine;
     QObject::connect(

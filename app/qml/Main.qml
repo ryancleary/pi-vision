@@ -105,6 +105,14 @@ ApplicationWindow {
                     }
                 }
             }
+
+            // Saves both frames, the settings and the metrics (see Captures.directory).
+            PanelButton {
+                Layout.leftMargin: Theme.spacing
+                label: Captures.busy ? qsTr("Saving…") : qsTr("Capture")
+                enabled: !Captures.busy
+                onClicked: Captures.take()
+            }
         }
     }
 
@@ -122,6 +130,49 @@ ApplicationWindow {
                 anchors.fill: parent
                 anchors.margins: Theme.margin
                 overlayOpacity: overlayMix.value
+            }
+
+            // Result of the last capture, shown for a few seconds.
+            Label {
+                id: captureToast
+
+                property bool isError: false
+
+                function show(message, error) {
+                    text = message
+                    isError = error
+                    opacity = 1
+                    toastTimer.restart()
+                }
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.margin * 2
+                z: 10 // over the compare view
+                padding: Theme.spacing
+                opacity: 0
+                color: isError ? Theme.error : Theme.text
+                font.pixelSize: Theme.fontSize
+                background: Rectangle {
+                    color: Theme.panel
+                    border.color: Theme.stroke
+                    radius: Theme.radius
+                }
+
+                Behavior on opacity { NumberAnimation { duration: Theme.transitionMs } }
+
+                Timer {
+                    id: toastTimer
+
+                    interval: Theme.toastMs
+                    onTriggered: captureToast.opacity = 0
+                }
+
+                Connections {
+                    target: Captures
+                    function onSaved(name) { captureToast.show(qsTr("Saved capture %1").arg(name), false) }
+                    function onFailed(message) { captureToast.show(message, true) }
+                }
             }
 
             // Shown when the source fails; the feed is cut, so this is all that's visible.

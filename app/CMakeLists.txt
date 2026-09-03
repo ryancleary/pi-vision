@@ -36,6 +36,7 @@ target_link_libraries(pivision PRIVATE
 target_compile_definitions(pivision PRIVATE
     PIVISION_VERSION="${PROJECT_VERSION}"
     PIVISION_DEV_LOG_FILE="${PIVISION_DEV_LOG_FILE}"
+    PIVISION_DEV_CAPTURE_DIR="${PIVISION_DEV_CAPTURE_DIR}"
 )
 
 install(TARGETS pivision

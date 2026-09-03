@@ -7,5 +7,6 @@ add_subdirectory(system)
 add_subdirectory(capture)
 add_subdirectory(processing)
 add_subdirectory(pipeline)
+add_subdirectory(snapshot)
 add_subdirectory(display)
 

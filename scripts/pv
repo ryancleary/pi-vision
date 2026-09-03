@@ -9,6 +9,7 @@
   scripts/pv run TARGET [options]             boot a QEMU target's image (see: run --help)
   scripts/pv stop TARGET                      stop a QEMU target started with run --background
   scripts/pv logs TARGET [options]            collect logs into logs/TARGET/ (see: logs --help)
+  scripts/pv captures TARGET [options]        copy the app's captures into logs/TARGET/captures/
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
 which stays the source of truth for the Yocto configuration.
@@ -26,7 +27,6 @@ import subprocess
 import sys
 import time
 from datetime import datetime
-from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -37,6 +37,7 @@ DEPLOY_DIR = REPO / "yocto" / "build" / "tmp" / "deploy" / "images"
 QEMU_STATE_DIR = LOG_ROOT / "qemu"
 DEVICE_LOG_ROOT = REPO / "logs"
 CRASH_DIR_ON_DEVICE = "/var/crash"
+CAPTURE_DIR_ON_DEVICE = "/var/crash/captures"
 SSH_OPTIONS = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
                "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=10"]
 
@@ -308,7 +309,7 @@ def stop_qemu(target):
 # --- logs -------------------------------------------------------------------
 
 PRIORITIES = ["emerg", "alert", "crit", "err", "warning", "notice", "info", "debug"]
-DUMP_NAME = re.compile(r"^\d{6}_")
+NUMBERED_FOLDER = re.compile(r"^\d{6}_")
 
 
 def entry_message(entry):
@@ -439,7 +440,7 @@ def convert_dumps(target, dumps_dir):
     if not journalctl:
         fail("journalctl not found; it's needed to read the saved journal files")
 
-    dumps = sorted(p for p in dumps_dir.iterdir() if p.is_dir() and DUMP_NAME.match(p.name))
+    dumps = sorted(p for p in dumps_dir.iterdir() if p.is_dir() and NUMBERED_FOLDER.match(p.name))
     if not dumps:
         print(f"No crash dumps in {dumps_dir}")
         return 0
@@ -458,18 +459,75 @@ def convert_dumps(target, dumps_dir):
     return 0
 
 
-def collect_crashes_over_ssh(target, args):
-    command = ssh_command(target, args, f"tar -C {CRASH_DIR_ON_DEVICE} -cf - .")
+def fetch_numbered_folders(target, args, remote_dir, into):
+    """Copies the NNNNNN_* folders in remote_dir on the device into the local directory `into`.
+
+    Only those folders: crash dumps and captures share the crash partition,
+    and each command wants just its own. Returns False if there were none.
+    """
+    # The glob stays literal if nothing matches, hence the -e test.
+    remote = (f"cd {remote_dir} 2>/dev/null && set -- [0-9][0-9][0-9][0-9][0-9][0-9]_* && "
+              f"[ -e \"$1\" ] && tar -cf - \"$@\"")
     with tempfile.TemporaryDirectory() as tmp:
-        archive = Path(tmp) / "crash.tar"
+        archive = Path(tmp) / "fetch.tar"
         with archive.open("wb") as out:
-            if subprocess.run(command, stdout=out).returncode != 0:
-                fail(f"could not read {CRASH_DIR_ON_DEVICE} on {target['name']}")
-        extracted = Path(tmp) / "crash"
-        extracted.mkdir()
+            status = subprocess.run(ssh_command(target, args, remote), stdout=out).returncode
+        if status == 255:  # ssh's own failure code
+            fail(f"could not reach {target['name']}; is it running and reachable?")
+        if archive.stat().st_size == 0:
+            return False
         with tarfile.open(archive) as tar:
-            tar.extractall(extracted, filter="data")
+            tar.extractall(into, filter="data")
+    return True
+
+
+def collect_crashes_over_ssh(target, args):
+    with tempfile.TemporaryDirectory() as tmp:
+        extracted = Path(tmp)
+        if not fetch_numbered_folders(target, args, CRASH_DIR_ON_DEVICE, extracted):
+            print(f"No crash dumps on {target['name']}")
+            return 0
         return convert_dumps(target, extracted)
+
+
+def copy_new_captures(source_dir, out_dir):
+    """Copies captures from source_dir that aren't in out_dir yet; returns their names."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    copied = []
+    for capture in sorted(p for p in source_dir.iterdir() if p.is_dir() and NUMBERED_FOLDER.match(p.name)):
+        if not (out_dir / capture.name).exists():
+            shutil.copytree(capture, out_dir / capture.name)
+            copied.append(capture.name)
+    return copied
+
+
+def collect_captures(target, args):
+    """Copies captures saved by the app into logs/TARGET/captures/, skipping ones already there.
+
+    The device keeps only its newest few, so anything copied here is the lasting copy.
+    """
+    out_dir = DEVICE_LOG_ROOT / target["name"] / "captures"
+    if args.card:
+        card = Path(args.card).expanduser()
+        source = card / "captures"
+        if not source.is_dir():
+            fail(f"no captures folder in {card}; mount the card's 'crash' partition and pass its path")
+        copied = copy_new_captures(source, out_dir)
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            if not fetch_numbered_folders(target, args, CAPTURE_DIR_ON_DEVICE, Path(tmp)):
+                print(f"No captures on {target['name']}")
+                return 0
+            copied = copy_new_captures(Path(tmp), out_dir)
+
+    shown = out_dir.relative_to(REPO)
+    if copied:
+        for name in copied:
+            print(f"{shown}/{name}")
+        print(f"{len(copied)} new capture(s)")
+    else:
+        print(f"Nothing new; {shown}/ is up to date")
+    return 0
 
 
 def collect_logs(target, args):
@@ -528,6 +586,16 @@ def main():
     logs.add_argument("--host", help="device address (default: from the target file)")
     logs.add_argument("--port", type=int, help="SSH port (default: from the target file)")
 
+    captures = commands.add_parser(
+        "captures", help="copy the app's captures into logs/TARGET/captures/",
+        description="Copies captures (JSON plus raw and processed PNG) from the device over "
+                    "SSH, or from the SD card. Ones already copied are skipped.")
+    captures.add_argument("target")
+    captures.add_argument("--card", metavar="DIR",
+                          help="read from the SD card's 'crash' partition mounted at DIR")
+    captures.add_argument("--host", help="device address (default: from the target file)")
+    captures.add_argument("--port", type=int, help="SSH port (default: from the target file)")
+
     args = parser.parse_args()
 
     if args.command == "targets":
@@ -546,6 +614,9 @@ def main():
 
     if args.command == "logs":
         return collect_logs(get_target(args.target), args)
+
+    if args.command == "captures":
+        return collect_captures(get_target(args.target), args)
 
     if args.what == "desktop":
         check_desktop_environment()

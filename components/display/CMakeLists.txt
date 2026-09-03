@@ -6,11 +6,13 @@ qt_add_qml_module(pivision_display
     VERSION 1.0
     SOURCES
         include/pivision/display/Registration.h
+        private/CaptureControl.h
         private/FrameView.h
         private/MetricsMonitor.h
         private/PipelineForeign.h
         private/ProcessingControl.h
         private/SourceSelector.h
+        src/CaptureControl.cpp
         src/FrameView.cpp
         src/MetricsMonitor.cpp
         src/ProcessingControl.cpp
@@ -25,6 +27,6 @@ target_include_directories(pivision_display
 
 target_link_libraries(pivision_display
     PUBLIC pivision::capture pivision::pipeline Qt6::Quick
-    PRIVATE pivision::logging pivision::system
+    PRIVATE pivision::logging pivision::snapshot pivision::system
 )
 

@@ -5,6 +5,7 @@
 #include <optional>
 
 #include <QHash>
+#include <QJsonObject>
 #include <QList>
 #include <QObject>
 #include <QPointer>
@@ -77,6 +78,11 @@ public:
     bool hasThrottle() const { return throttleFlags_.has_value(); }
     QStringList throttleNow() const;
     QStringList throttleSinceBoot() const;
+
+    // Takes a fresh reading and returns it all as JSON, for captures. If the
+    // panel wasn't running, CPU use covers the time since the previous reading
+    // (cpuWindowSeconds says how long).
+    QJsonObject toJson();
 
 signals:
     void runningChanged();

@@ -112,6 +112,7 @@ void Pipeline::setStageParameter(const QString &id, const QString &name, double 
 
 void Pipeline::setProcessSize(const QSize &size)
 {
+    processSize_ = size;
     onProcessingThread([size](FrameProcessor &processor) { processor.setProcessSize(size); });
 }
 
