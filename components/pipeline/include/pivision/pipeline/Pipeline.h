@@ -13,6 +13,7 @@
 #include <QThread>
 
 #include <pivision/capture/FrameSource.h>
+#include <pivision/pipeline/FrameMetrics.h>
 #include <pivision/pipeline/LatestFrameBuffer.h>
 #include <pivision/pipeline/StageConfig.h>
 
@@ -56,8 +57,13 @@ public:
     std::optional<DisplayFrame> latestFrame() const { return latest_; }
 
     // Frames dropped because the next step was still busy. Defined in the .cpp:
-    // it needs RawFrame, which is private to this component.
+    // they need RawFrame, which is private to this component.
     std::uint64_t droppedFrames() const;
+    DropCounts dropCounts() const;
+
+    // Frame rates, latency and stage times over the last second. Reset when
+    // the source changes or fails.
+    MetricsSnapshot metrics() const { return metrics_.snapshot(FrameMetrics::Clock::now()); }
     QString sourceName() const { return sourceName_; }
     // Why the current source isn't producing frames; empty while it is.
     QString errorString() const { return errorString_; }
@@ -89,6 +95,7 @@ private:
     QThread processingThread_;
 
     std::optional<DisplayFrame> latest_;
+    FrameMetrics metrics_;
     std::uint64_t generation_ = 0;
     QString sourceName_;
     QString errorString_;

@@ -1,5 +1,6 @@
 pivision_add_tests(pipeline
     SOURCES
+        FrameMetricsGTest.cpp
         LatestFrameBufferGTest.cpp
         PipelineGTest.cpp
         StageConfigGTest.cpp

@@ -22,6 +22,9 @@ QtObject {
     readonly property int margin: 12
     readonly property int spacing: 8
     readonly property int sidePanelWidth: 280
+    readonly property int tabHeight: 36
+    readonly property int tabIndicatorHeight: 2
+    readonly property int metricSpacing: 4
     readonly property int sourceBoxWidth: 340
     readonly property int radius: 5
     readonly property int borderWidth: 1
