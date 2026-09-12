@@ -30,20 +30,27 @@ int usageError(const QString &message)
     return EXIT_FAILURE;
 }
 
-// Where captures go unless --capture-dir says otherwise, and how many to keep.
-// Development builds: a folder in the repo, all kept. On the device: the crash
-// partition, which is small (64 MB, shared with crash dumps), so only the newest 10.
-struct CaptureDefaults {
-    QString directory;
-    int keep;
+// Where files go, unless options say otherwise.
+//   Development builds: captures in a folder in the repo, all kept; no crash
+//   dumps; USB sticks where the desktop mounts them (udisks).
+//   On the device: captures on the crash partition, which is small (64 MB,
+//   shared with crash dumps), so only the newest 10; sticks where our udev
+//   rule mounts them.
+struct StorageDefaults {
+    QString captureDirectory;
+    int captureKeep;
+    QString crashDirectory;
+    QString usbRoot;
 };
 
-CaptureDefaults captureDefaults()
+StorageDefaults storageDefaults()
 {
-    const QString devDirectory = QStringLiteral(PIVISION_DEV_CAPTURE_DIR);
-    if (!devDirectory.isEmpty())
-        return { devDirectory, 0 };
-    return { QStringLiteral("/var/crash/captures"), 10 };
+    const QString devCaptures = QStringLiteral(PIVISION_DEV_CAPTURE_DIR);
+    if (!devCaptures.isEmpty())
+        return { devCaptures, 0, QString(),
+            QStringLiteral("/run/media/%1").arg(qEnvironmentVariable("USER")) };
+    return { QStringLiteral("/var/crash/captures"), 10, QStringLiteral("/var/crash"),
+        QStringLiteral("/run/media") };
 }
 
 std::optional<QSize> parseSize(const QString &text)
@@ -85,18 +92,22 @@ int main(int argc, char *argv[])
                     ? QString()
                     : QStringLiteral(" Default: %1").arg(QStringLiteral(PIVISION_DEV_LOG_FILE))),
         QStringLiteral("file"), QStringLiteral(PIVISION_DEV_LOG_FILE));
-    const CaptureDefaults captures = captureDefaults();
+    const StorageDefaults storage = storageDefaults();
     const QCommandLineOption captureDirOption(QStringLiteral("capture-dir"),
-        QStringLiteral("Save captures in <dir> (default %1).").arg(captures.directory),
-        QStringLiteral("dir"), captures.directory);
+        QStringLiteral("Save captures in <dir> (default %1).").arg(storage.captureDirectory),
+        QStringLiteral("dir"), storage.captureDirectory);
     const QCommandLineOption captureKeepOption(QStringLiteral("capture-keep"),
         QStringLiteral("Keep only the newest <n> captures; 0 keeps all (default %1).")
-            .arg(captures.keep),
-        QStringLiteral("n"), QString::number(captures.keep));
+            .arg(storage.captureKeep),
+        QStringLiteral("n"), QString::number(storage.captureKeep));
+    const QCommandLineOption usbRootOption(QStringLiteral("usb-root"),
+        QStringLiteral("Look for USB sticks mounted directly below <dir> (default %1).")
+            .arg(storage.usbRoot),
+        QStringLiteral("dir"), storage.usbRoot);
     const QCommandLineOption verboseOption(QStringLiteral("verbose"),
         QStringLiteral("Include debug messages in the log."));
     parser.addOptions({ cameraOption, patternOption, sizeOption, processSizeOption, logFileOption,
-        captureDirOption, captureKeepOption, verboseOption });
+        captureDirOption, captureKeepOption, usbRootOption, verboseOption });
     parser.addPositionalArgument(QStringLiteral("source"),
         QStringLiteral("Video file, stream URL or /dev/video* device."), QStringLiteral("[source]"));
     parser.process(app);
@@ -174,6 +185,8 @@ int main(int argc, char *argv[])
     pivision::display::exposeMetricsMonitor(&pipeline, *stages);
     pivision::display::exposeCaptures(&pipeline, parser.value(captureDirOption), captureKeep,
         QStringLiteral(PIVISION_VERSION));
+    pivision::display::exposeUsb(parser.value(usbRootOption), parser.value(captureDirOption),
+        storage.crashDirectory, &pipeline);
 
     QQmlApplicationEngine engine;
     QObject::connect(

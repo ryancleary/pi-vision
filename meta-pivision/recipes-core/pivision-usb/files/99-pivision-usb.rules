@@ -1,0 +1,6 @@
+# pi-vision: mount FAT and exFAT USB sticks so the app can copy captures onto
+# them. The partition (or a stick with no partition table) is mounted at
+# /run/media/<kernel name>, e.g. /run/media/sda1, by usb-mount.
+# ID_BUS and ID_FS_TYPE come from 60-persistent-storage.rules, hence the 99.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", \
+    ENV{ID_FS_TYPE}=="vfat|exfat", RUN+="/usr/libexec/pivision/usb-mount %k"

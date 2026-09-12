@@ -113,6 +113,14 @@ ApplicationWindow {
                 enabled: !Captures.busy
                 onClicked: Captures.take()
             }
+
+            // Only while a stick is in: copies captures and crash dumps onto it.
+            PanelButton {
+                visible: Usb.present
+                label: Usb.busy ? qsTr("Copying…") : qsTr("Copy to USB")
+                enabled: !Usb.busy
+                onClicked: Usb.copyAll()
+            }
         }
     }
 
@@ -132,9 +140,9 @@ ApplicationWindow {
                 overlayOpacity: overlayMix.value
             }
 
-            // Result of the last capture, shown for a few seconds.
+            // Short messages (capture and USB results), shown for a few seconds.
             Label {
-                id: captureToast
+                id: toast
 
                 property bool isError: false
 
@@ -165,13 +173,23 @@ ApplicationWindow {
                     id: toastTimer
 
                     interval: Theme.toastMs
-                    onTriggered: captureToast.opacity = 0
+                    onTriggered: toast.opacity = 0
                 }
 
                 Connections {
                     target: Captures
-                    function onSaved(name) { captureToast.show(qsTr("Saved capture %1").arg(name), false) }
-                    function onFailed(message) { captureToast.show(message, true) }
+                    function onSaved(name) { toast.show(qsTr("Saved capture %1").arg(name), false) }
+                    function onFailed(message) { toast.show(message, true) }
+                }
+
+                Connections {
+                    target: Usb
+                    function onCopied(summary) { toast.show(summary, false) }
+                    function onFailed(message) { toast.show(message, true) }
+                    function onPresentChanged() {
+                        if (Usb.present)
+                            toast.show(qsTr("USB stick found at %1").arg(Usb.mountPoint), false)
+                    }
                 }
             }
 

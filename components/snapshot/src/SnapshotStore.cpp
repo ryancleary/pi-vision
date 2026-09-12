@@ -17,7 +17,7 @@ namespace pivision::snapshot {
 namespace {
 
     // "000012_..." : a six-digit sequence number, then anything.
-    const QRegularExpression &captureName()
+    const QRegularExpression &numberedName()
     {
         static const QRegularExpression pattern(QStringLiteral("^(\\d{6})_"));
         return pattern;
@@ -28,7 +28,7 @@ namespace {
     // The sequence number at the start of a capture's folder name.
     int sequenceOf(const QString &name)
     {
-        return captureName().match(name).captured(1).toInt();
+        return numberedName().match(name).captured(1).toInt();
     }
 
     bool writeJson(const QString &path, const QJsonObject &object)
@@ -43,11 +43,16 @@ namespace {
 
 } // namespace
 
+bool isNumberedFolder(const QString &name)
+{
+    return numberedName().match(name).hasMatch();
+}
+
 QStringList SnapshotStore::list() const
 {
     QStringList names = QDir(directory_).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
     names.erase(std::remove_if(names.begin(), names.end(),
-                    [](const QString &name) { return !captureName().match(name).hasMatch(); }),
+                    [](const QString &name) { return !isNumberedFolder(name); }),
         names.end());
     // The fixed-width number at the front makes name order the same as age order.
     names.sort();

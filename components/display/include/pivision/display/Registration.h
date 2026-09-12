@@ -2,6 +2,7 @@
 #define PIVISION_DISPLAY_REGISTRATION_H
 
 #include <QList>
+#include <QObject>
 #include <QString>
 
 #include <pivision/capture/SourceFactory.h>
@@ -37,6 +38,13 @@ void exposeProcessingControl(pivision::pipeline::Pipeline *pipeline,
 // current values it records; owned by `pipeline`.
 void exposeCaptures(pivision::pipeline::Pipeline *pipeline, const QString &directory, int keep,
     const QString &appVersion);
+
+// Makes the "Copy to USB" button's backend available to QML as the singleton
+// `Usb`. It watches for a stick mounted directly below `mountRoot` and copies
+// `captureDirectory` and `crashDirectory` (if not empty) onto it. Call before
+// loading any QML; owned by `parent`.
+void exposeUsb(const QString &mountRoot, const QString &captureDirectory,
+    const QString &crashDirectory, QObject *parent);
 
 // Makes the metrics panel's backend available to QML as the singleton
 // `MetricsMonitor`, reading `pipeline` and naming stages from `stages`.

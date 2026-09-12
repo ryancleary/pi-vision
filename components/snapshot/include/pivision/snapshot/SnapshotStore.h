@@ -10,6 +10,10 @@
 
 namespace pivision::snapshot {
 
+// True for folder names that start with a six-digit sequence number and an
+// underscore, as captures and crash dumps both do.
+bool isNumberedFolder(const QString &name);
+
 struct SaveResult {
     QString name;  // folder name, e.g. 000012_2026-10-09_143501
     QString path;  // full path of the folder
