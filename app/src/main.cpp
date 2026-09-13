@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -7,7 +6,6 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <QRegularExpression>
 #include <QSize>
 #include <QtQml/QQmlExtensionPlugin>
 
@@ -19,51 +17,10 @@
 #include <pivision/pipeline/Pipeline.h>
 #include <pivision/pipeline/StageConfig.h>
 
+#include "Utilities.h"
+
 // PiVision.Display is a static QML module, so its plugin must be imported explicitly.
 Q_IMPORT_QML_PLUGIN(PiVision_DisplayPlugin)
-
-namespace {
-
-int usageError(const QString &message)
-{
-    std::fprintf(stderr, "pivision: %s\nTry --help.\n", qPrintable(message));
-    return EXIT_FAILURE;
-}
-
-// Where files go, unless options say otherwise.
-//   Development builds: captures in a folder in the repo, all kept; no crash
-//   dumps; USB sticks where the desktop mounts them (udisks).
-//   On the device: captures on the crash partition, which is small (64 MB,
-//   shared with crash dumps), so only the newest 10; sticks where our udev
-//   rule mounts them.
-struct StorageDefaults {
-    QString captureDirectory;
-    int captureKeep;
-    QString crashDirectory;
-    QString usbRoot;
-};
-
-StorageDefaults storageDefaults()
-{
-    const QString devCaptures = QStringLiteral(PIVISION_DEV_CAPTURE_DIR);
-    if (!devCaptures.isEmpty())
-        return { devCaptures, 0, QString(),
-            QStringLiteral("/run/media/%1").arg(qEnvironmentVariable("USER")) };
-    return { QStringLiteral("/var/crash/captures"), 10, QStringLiteral("/var/crash"),
-        QStringLiteral("/run/media") };
-}
-
-std::optional<QSize> parseSize(const QString &text)
-{
-    static const QRegularExpression pattern(QStringLiteral("^(\\d+)x(\\d+)$"));
-    const auto match = pattern.match(text);
-    if (!match.hasMatch())
-        return std::nullopt;
-    const QSize size(match.captured(1).toInt(), match.captured(2).toInt());
-    return size.isEmpty() ? std::nullopt : std::optional<QSize>(size);
-}
-
-} // namespace
 
 int main(int argc, char *argv[])
 {
@@ -92,7 +49,7 @@ int main(int argc, char *argv[])
                     ? QString()
                     : QStringLiteral(" Default: %1").arg(QStringLiteral(PIVISION_DEV_LOG_FILE))),
         QStringLiteral("file"), QStringLiteral(PIVISION_DEV_LOG_FILE));
-    const StorageDefaults storage = storageDefaults();
+    const pivision::app::StorageDefaults storage = pivision::app::storageDefaults();
     const QCommandLineOption captureDirOption(QStringLiteral("capture-dir"),
         QStringLiteral("Save captures in <dir> (default %1).").arg(storage.captureDirectory),
         QStringLiteral("dir"), storage.captureDirectory);
@@ -120,18 +77,18 @@ int main(int argc, char *argv[])
     if (!parser.value(logFileOption).isEmpty())
         qCInfo(pivision::logging::lcApp) << "Logging to" << parser.value(logFileOption);
 
-    const auto size = parseSize(parser.value(sizeOption));
+    const auto size = pivision::app::parseSize(parser.value(sizeOption));
     if (!size)
-        return usageError(QStringLiteral("--size must look like 640x480"));
+        return pivision::app::usageError(QStringLiteral("--size must look like 640x480"));
 
-    const auto processSize = parseSize(parser.value(processSizeOption));
+    const auto processSize = pivision::app::parseSize(parser.value(processSizeOption));
     if (!processSize)
-        return usageError(QStringLiteral("--process-size must look like 320x240"));
+        return pivision::app::usageError(QStringLiteral("--process-size must look like 320x240"));
 
     bool keepIsNumber = false;
     const int captureKeep = parser.value(captureKeepOption).toInt(&keepIsNumber);
     if (!keepIsNumber || captureKeep < 0)
-        return usageError(QStringLiteral("--capture-keep must be 0 or more"));
+        return pivision::app::usageError(QStringLiteral("--capture-keep must be 0 or more"));
 
     // The processing stages ship inside the app; a bad file is a build mistake.
     QFile stageFile(QStringLiteral(":/pivision/config/stages.json"));
@@ -156,7 +113,7 @@ int main(int argc, char *argv[])
     const int chosen = static_cast<int>(parser.isSet(cameraOption))
         + static_cast<int>(parser.isSet(patternOption)) + static_cast<int>(!positional.isEmpty());
     if (chosen > 1 || positional.size() > 1)
-        return usageError(QStringLiteral("give at most one source"));
+        return pivision::app::usageError(QStringLiteral("give at most one source"));
 
     std::unique_ptr<pivision::capture::FrameSource> source;
     if (parser.isSet(patternOption)) {

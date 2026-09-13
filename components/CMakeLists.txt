@@ -3,6 +3,7 @@ if(PIVISION_BUILD_TESTS)
 endif()
 
 add_subdirectory(logging)
+add_subdirectory(utils)
 add_subdirectory(system)
 add_subdirectory(capture)
 add_subdirectory(processing)

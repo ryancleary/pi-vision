@@ -7,27 +7,26 @@
 
 namespace pivision::pipeline {
 
-namespace {
+class StageConfigTest : public ::testing::Test {
+protected:
+    static inline const QByteArray kValid = R"({
+      "stages": [
+        { "id": "grayscale", "label": "Grayscale", "enabled": true },
+        { "id": "blur", "label": "Blur",
+          "parameters": [ { "name": "size", "label": "Kernel size",
+                            "value": 5, "min": 3, "max": 15, "step": 2 } ] }
+      ]
+    })";
 
-const QByteArray kValid = R"({
-  "stages": [
-    { "id": "grayscale", "label": "Grayscale", "enabled": true },
-    { "id": "blur", "label": "Blur",
-      "parameters": [ { "name": "size", "label": "Kernel size",
-                        "value": 5, "min": 3, "max": 15, "step": 2 } ] }
-  ]
-})";
+    static QString errorFor(const QByteArray &json)
+    {
+        QString error;
+        EXPECT_FALSE(parseStageConfig(json, &error).has_value()) << json.toStdString();
+        return error;
+    }
+};
 
-QString errorFor(const QByteArray &json)
-{
-    QString error;
-    EXPECT_FALSE(parseStageConfig(json, &error).has_value()) << json.toStdString();
-    return error;
-}
-
-} // namespace
-
-TEST(StageConfig, ReadsStagesInOrderWithParameters)
+TEST_F(StageConfigTest, ReadsStagesInOrderWithParameters)
 {
     QString error;
     const auto stages = parseStageConfig(kValid, &error);
@@ -49,20 +48,20 @@ TEST(StageConfig, ReadsStagesInOrderWithParameters)
     EXPECT_EQ(blur.parameters[0].step, 2.0);
 }
 
-TEST(StageConfig, RejectsBrokenJson)
+TEST_F(StageConfigTest, RejectsBrokenJson)
 {
     EXPECT_FALSE(errorFor(R"({ "stages": [ )").isEmpty());
     EXPECT_TRUE(errorFor(R"([1, 2])").contains(QStringLiteral("stages")));
 }
 
-TEST(StageConfig, RejectsUnknownAndDuplicateStages)
+TEST_F(StageConfigTest, RejectsUnknownAndDuplicateStages)
 {
     EXPECT_TRUE(errorFor(R"({ "stages": [ { "id": "sharpen" } ] })").contains(QStringLiteral("sharpen")));
     EXPECT_TRUE(errorFor(R"({ "stages": [ { "id": "blur" }, { "id": "blur" } ] })")
                     .contains(QStringLiteral("twice")));
 }
 
-TEST(StageConfig, RejectsBadParameters)
+TEST_F(StageConfigTest, RejectsBadParameters)
 {
     // A parameter the stage doesn't have.
     EXPECT_TRUE(errorFor(R"({ "stages": [ { "id": "blur", "parameters": [

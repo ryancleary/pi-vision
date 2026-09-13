@@ -9,22 +9,21 @@
 
 namespace pivision::processing {
 
-namespace {
+class BuiltinStagesTest : public ::testing::Test {
+protected:
+    // A dim, low-contrast gradient with a bright square: something every stage
+    // visibly changes.
+    static cv::Mat sampleImage()
+    {
+        cv::Mat image(120, 160, CV_8UC3);
+        for (int x = 0; x < image.cols; ++x)
+            image.col(x).setTo(cv::Scalar(40 + x / 8, 50 + x / 10, 60));
+        cv::rectangle(image, cv::Rect(60, 40, 40, 40), cv::Scalar(200, 220, 240), cv::FILLED);
+        return image;
+    }
+};
 
-// A dim, low-contrast gradient with a bright square: something every stage
-// visibly changes.
-cv::Mat sampleImage()
-{
-    cv::Mat image(120, 160, CV_8UC3);
-    for (int x = 0; x < image.cols; ++x)
-        image.col(x).setTo(cv::Scalar(40 + x / 8, 50 + x / 10, 60));
-    cv::rectangle(image, cv::Rect(60, 40, 40, 40), cv::Scalar(200, 220, 240), cv::FILLED);
-    return image;
-}
-
-} // namespace
-
-TEST(BuiltinStages, EveryKnownIdMakesAStageWithThatId)
+TEST_F(BuiltinStagesTest, EveryKnownIdMakesAStageWithThatId)
 {
     for (const std::string &id : knownStageIds()) {
         auto stage = makeStage(id);
@@ -34,7 +33,7 @@ TEST(BuiltinStages, EveryKnownIdMakesAStageWithThatId)
     EXPECT_EQ(makeStage("sharpen"), nullptr);
 }
 
-TEST(BuiltinStages, EveryStageAcceptsColorAndGrayAndKeepsTheSize)
+TEST_F(BuiltinStagesTest, EveryStageAcceptsColorAndGrayAndKeepsTheSize)
 {
     const cv::Mat color = sampleImage();
     cv::Mat gray;
@@ -51,7 +50,7 @@ TEST(BuiltinStages, EveryStageAcceptsColorAndGrayAndKeepsTheSize)
     }
 }
 
-TEST(BuiltinStages, GrayscaleAndEdgesProduceOneChannel)
+TEST_F(BuiltinStagesTest, GrayscaleAndEdgesProduceOneChannel)
 {
     const cv::Mat color = sampleImage();
     for (const char *id : { "grayscale", "edges" }) {
@@ -61,7 +60,7 @@ TEST(BuiltinStages, GrayscaleAndEdgesProduceOneChannel)
     }
 }
 
-TEST(BuiltinStages, ClaheAndBlurKeepColorAndChangeTheImage)
+TEST_F(BuiltinStagesTest, ClaheAndBlurKeepColorAndChangeTheImage)
 {
     const cv::Mat color = sampleImage();
     for (const char *id : { "clahe", "blur" }) {
@@ -72,7 +71,7 @@ TEST(BuiltinStages, ClaheAndBlurKeepColorAndChangeTheImage)
     }
 }
 
-TEST(BuiltinStages, EdgesFindTheSquareOutline)
+TEST_F(BuiltinStagesTest, EdgesFindTheSquareOutline)
 {
     cv::Mat out;
     makeStage("edges")->process(sampleImage(), out);
@@ -81,7 +80,7 @@ TEST(BuiltinStages, EdgesFindTheSquareOutline)
     EXPECT_EQ(cv::countNonZero(out(cv::Rect(70, 50, 20, 20))), 0);
 }
 
-TEST(BuiltinStages, ParametersAreClampedAndUnknownNamesRejected)
+TEST_F(BuiltinStagesTest, ParametersAreClampedAndUnknownNamesRejected)
 {
     auto blur = makeStage("blur");
     EXPECT_TRUE(blur->setParameter("size", 6));

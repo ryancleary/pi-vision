@@ -8,32 +8,11 @@
 
 #include <pivision/logging/Logging.h>
 #include <pivision/processing/StageFactory.h>
+#include <pivision/utils/Images.h>
+
+#include "Utilities.h"
 
 namespace pivision::pipeline {
-
-namespace {
-
-    // Copies an 8-bit BGR or gray image into a QImage that owns its pixels, so
-    // it can outlive the cv::Mat and cross to the GUI thread.
-    QImage toQImage(const cv::Mat &mat)
-    {
-        const auto format = mat.channels() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888;
-        const QImage view(mat.data, mat.cols, mat.rows, static_cast<qsizetype>(mat.step), format);
-        return view.copy();
-    }
-
-    // The size a frame is processed at: unchanged if it already fits inside
-    // `limit`, otherwise shrunk to fit with its aspect ratio kept (QSize::scaled
-    // with Qt::KeepAspectRatio does the math). An empty `limit` means no limit.
-    QSize processingSizeFor(const QSize &frame, const QSize &limit)
-    {
-        const bool fits = frame.width() <= limit.width() && frame.height() <= limit.height();
-        if (limit.isEmpty() || fits)
-            return frame;
-        return frame.scaled(limit, Qt::KeepAspectRatio);
-    }
-
-} // namespace
 
 FrameProcessor::FrameProcessor(RawFrameBuffer &input, LatestFrameBuffer &output)
     : input_(input)
@@ -75,7 +54,7 @@ void FrameProcessor::processLatest()
     const cv::Mat &image = raw->frame.image;
 
     DisplayFrame frame;
-    frame.raw = toQImage(image);
+    frame.raw = utils::toQImage(image);
     frame.index = raw->frame.index;
     frame.captured = raw->frame.captured;
     frame.generation = raw->generation;
@@ -92,10 +71,10 @@ void FrameProcessor::processLatest()
 
     if (chain_.anyEnabled()) {
         chain_.run(*input, result_, &frame.timings);
-        frame.processed = toQImage(result_);
+        frame.processed = utils::toQImage(result_);
     } else {
         // Nothing to do: share the raw image instead of copying it.
-        frame.processed = input == &image ? frame.raw : toQImage(*input);
+        frame.processed = input == &image ? frame.raw : utils::toQImage(*input);
     }
 
     if (output_.put(std::move(frame)))

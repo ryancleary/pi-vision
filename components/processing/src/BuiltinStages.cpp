@@ -1,25 +1,11 @@
 #include "BuiltinStages.h"
 
+#include "Utilities.h"
+
 #include <algorithm>
-#include <cmath>
 #include <vector>
 
 namespace pivision::processing {
-
-namespace {
-
-    // OpenCV's Gaussian blur needs a positive, odd kernel size (the kernel has a
-    // center pixel). Rounds to the nearest whole size, keeps it within 1..31,
-    // and moves an even size up to the next odd one.
-    int validGaussianKernelSize(double requested)
-    {
-        constexpr int kSmallest = 1;
-        constexpr int kLargest = 31;
-        const int size = std::clamp(static_cast<int>(std::lround(requested)), kSmallest, kLargest);
-        return size % 2 == 1 ? size : size + 1;
-    }
-
-} // namespace
 
 // --- ClaheStage ---
 

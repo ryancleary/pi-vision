@@ -5,7 +5,6 @@
 #include <cstring>
 #include <filesystem>
 #include <optional>
-#include <regex>
 #include <system_error>
 
 #include <fcntl.h>
@@ -13,21 +12,9 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include "Utilities.h"
+
 namespace pivision::capture {
-
-namespace {
-
-    // The N in a device name "videoN", or nothing if the name has another form.
-    std::optional<int> deviceNumber(const std::string &filename)
-    {
-        static const std::regex pattern("^video([0-9]+)$");
-        std::smatch match;
-        if (!std::regex_match(filename, match, pattern))
-            return std::nullopt;
-        return std::stoi(match[1].str());
-    }
-
-} // namespace
 
 std::optional<CameraInfo> describeCamera(const std::string &device)
 {

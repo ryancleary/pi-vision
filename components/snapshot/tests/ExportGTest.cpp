@@ -8,20 +8,19 @@
 
 namespace pivision::snapshot {
 
-namespace {
-
+class ExportTest : public ::testing::Test {
+protected:
     // Makes <root>/<name>/file.txt.
-    void makeFolder(const QString &root, const QString &name)
+    static void makeFolder(const QString &root, const QString &name)
     {
         QDir(root).mkpath(name);
         QFile file(QDir(root).filePath(name + QStringLiteral("/file.txt")));
         ASSERT_TRUE(file.open(QIODevice::WriteOnly));
         file.write("data");
     }
+};
 
-} // namespace
-
-TEST(ExportGTest, CopiesOnlyWhatIsNew)
+TEST_F(ExportTest, CopiesOnlyWhatIsNew)
 {
     QTemporaryDir from;
     QTemporaryDir to;
@@ -41,7 +40,7 @@ TEST(ExportGTest, CopiesOnlyWhatIsNew)
     EXPECT_EQ(second.skipped, 2);
 }
 
-TEST(ExportGTest, MissingSourceCopiesNothing)
+TEST_F(ExportTest, MissingSourceCopiesNothing)
 {
     QTemporaryDir to;
     const ExportResult result = exportNumberedFolders(QStringLiteral("/nonexistent/pivision"), to.path());
@@ -49,7 +48,7 @@ TEST(ExportGTest, MissingSourceCopiesNothing)
     EXPECT_EQ(result.copied, 0);
 }
 
-TEST(ExportGTest, UnwritableDestinationReportsAnError)
+TEST_F(ExportTest, UnwritableDestinationReportsAnError)
 {
     QTemporaryDir from;
     makeFolder(from.path(), QStringLiteral("000001_a"));
@@ -57,7 +56,7 @@ TEST(ExportGTest, UnwritableDestinationReportsAnError)
     EXPECT_FALSE(result.ok());
 }
 
-TEST(ExportGTest, MountPointsDirectlyBelowRoot)
+TEST_F(ExportTest, MountPointsDirectlyBelowRoot)
 {
     const QStringList mounts { QStringLiteral("/"), QStringLiteral("/run/media"),
         QStringLiteral("/run/media/sdb1"), QStringLiteral("/run/media/sda1"),

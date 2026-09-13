@@ -21,6 +21,16 @@ Item {
     }
 
     property int mode: CompareView.ViewMode.Overlay
+
+    // Button text for each mode.
+    function modeLabel(viewMode) {
+        switch (viewMode) {
+        case CompareView.ViewMode.SideBySide: return qsTr("Side by side")
+        case CompareView.ViewMode.Overlay: return qsTr("Overlay")
+        case CompareView.ViewMode.PictureInPicture: return qsTr("PiP")
+        }
+        return ""
+    }
     property real overlayOpacity: 0.5
 
     // Side by side: two equal panes with a gap between them.

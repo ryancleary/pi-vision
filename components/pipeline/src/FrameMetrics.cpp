@@ -4,22 +4,9 @@
 #include <iterator>
 #include <numeric>
 
+#include "Utilities.h"
+
 namespace pivision::pipeline {
-
-namespace {
-
-    using Milliseconds = std::chrono::duration<double, std::milli>;
-    using Seconds = std::chrono::duration<double>;
-
-    // Events per second between two counts taken at two times. Zero if no
-    // time passed, so a single sample doesn't divide by zero.
-    double ratePerSecond(double countDelta, FrameMetrics::Clock::duration elapsed)
-    {
-        const double seconds = Seconds(elapsed).count();
-        return seconds > 0.0 ? countDelta / seconds : 0.0;
-    }
-
-} // namespace
 
 void FrameMetrics::add(const DisplayFrame &frame, Clock::time_point shown, const DropCounts &drops)
 {
@@ -59,7 +46,7 @@ MetricsSnapshot FrameMetrics::snapshot(Clock::time_point now) const
 
     const double latencyTotalMs = std::accumulate(first, samples_.end(), 0.0,
         [](double total, const Sample &sample) {
-            return total + Milliseconds(sample.shown - sample.captured).count();
+            return total + std::chrono::duration<double, std::milli>(sample.shown - sample.captured).count();
         });
     result.latencyMs = latencyTotalMs / static_cast<double>(count);
 

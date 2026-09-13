@@ -6,11 +6,13 @@ add_library(pivision_pipeline STATIC
     private/FrameProcessor.h
     private/FrameProducer.h
     private/RawFrame.h
+    private/Utilities.h
     src/FrameMetrics.cpp
     src/FrameProcessor.cpp
     src/FrameProducer.cpp
     src/Pipeline.cpp
     src/StageConfig.cpp
+    src/Utilities.cpp
 )
 add_library(pivision::pipeline ALIAS pivision_pipeline)
 
@@ -21,7 +23,7 @@ target_include_directories(pivision_pipeline
 
 target_link_libraries(pivision_pipeline
     PUBLIC  pivision::capture pivision::processing Qt6::Core Qt6::Gui
-    PRIVATE pivision::logging opencv_imgproc
+    PRIVATE pivision::logging pivision::utils opencv_imgproc
 )
 
 # Lets QML modules in other components refer to Pipeline (see display).

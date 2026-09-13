@@ -6,6 +6,7 @@ add_library(pivision_capture STATIC
     private/AutoSource.h
     private/CameraSource.h
     private/TestPatternSource.h
+    private/Utilities.h
     private/VideoSource.h
     src/AutoSource.cpp
     src/CameraDiscovery.cpp
@@ -13,6 +14,7 @@ add_library(pivision_capture STATIC
     src/FrameSource.cpp
     src/SourceFactory.cpp
     src/TestPatternSource.cpp
+    src/Utilities.cpp
     src/VideoSource.cpp
 )
 add_library(pivision::capture ALIAS pivision_capture)

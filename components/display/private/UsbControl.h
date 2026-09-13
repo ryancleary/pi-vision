@@ -1,6 +1,8 @@
 #ifndef PIVISION_DISPLAY_USBCONTROL_H
 #define PIVISION_DISPLAY_USBCONTROL_H
 
+#include <chrono>
+
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -48,6 +50,10 @@ signals:
     void failed(const QString &message);
 
 private:
+    // Mounting happens outside the app, so check for it once a second;
+    // reading the mount table that often costs next to nothing.
+    static constexpr std::chrono::seconds kPollInterval { 1 };
+
     void checkMounts();
     void setBusy(bool busy);
 

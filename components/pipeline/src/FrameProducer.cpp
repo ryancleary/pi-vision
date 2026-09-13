@@ -7,16 +7,9 @@
 
 #include <pivision/logging/Logging.h>
 
+#include "Utilities.h"
+
 namespace pivision::pipeline {
-
-namespace {
-
-    QString nameOf(const capture::FrameSource &source)
-    {
-        return QString::fromStdString(source.name());
-    }
-
-} // namespace
 
 FrameProducer::FrameProducer(
     std::unique_ptr<capture::FrameSource> source, RawFrameBuffer &buffer)

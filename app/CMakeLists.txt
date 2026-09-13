@@ -1,5 +1,7 @@
 qt_add_executable(pivision
     src/main.cpp
+    src/Utilities.cpp
+    src/Utilities.h
 )
 
 # Shared colors and sizes, used as "Theme" from any QML file in the module.

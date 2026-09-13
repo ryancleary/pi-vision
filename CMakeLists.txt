@@ -38,6 +38,10 @@ qt_standard_project_setup(REQUIRES 6.8)
 # Put every QML module in one directory so the QML compiler and Qt Creator
 # can find modules defined in other subdirectories.
 set(QT_QML_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/qml)
+# Qt Creator's QML code model finds our modules (PiVision, PiVision.Display)
+# through this cache variable. Without it, it can't resolve them and reports
+# "package import requires a version number".
+set(QML_IMPORT_PATH ${QT_QML_OUTPUT_DIRECTORY} CACHE STRING "QML import path for Qt Creator" FORCE)
 
 if(PIVISION_BUILD_TESTS)
     enable_testing()

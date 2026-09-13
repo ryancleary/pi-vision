@@ -9,31 +9,30 @@
 
 namespace pivision::pipeline {
 
-namespace {
+class LatestFrameBufferTest : public ::testing::Test {
+protected:
+    static DisplayFrame frameWithIndex(std::uint64_t index)
+    {
+        DisplayFrame frame;
+        frame.index = index;
+        return frame;
+    }
+};
 
-DisplayFrame frameWithIndex(std::uint64_t index)
-{
-    DisplayFrame frame;
-    frame.index = index;
-    return frame;
-}
-
-} // namespace
-
-TEST(LatestFrameBuffer, StartsEmpty)
+TEST_F(LatestFrameBufferTest, StartsEmpty)
 {
     LatestFrameBuffer buffer;
     EXPECT_FALSE(buffer.take().has_value());
     EXPECT_EQ(buffer.droppedCount(), 0u);
 }
 
-TEST(LatestFrameBuffer, PutIntoEmptyBufferRequestsNotification)
+TEST_F(LatestFrameBufferTest, PutIntoEmptyBufferRequestsNotification)
 {
     LatestFrameBuffer buffer;
     EXPECT_TRUE(buffer.put(frameWithIndex(0)));
 }
 
-TEST(LatestFrameBuffer, PutIntoFullBufferReplacesFrameAndCountsDrop)
+TEST_F(LatestFrameBufferTest, PutIntoFullBufferReplacesFrameAndCountsDrop)
 {
     LatestFrameBuffer buffer;
     buffer.put(frameWithIndex(0));
@@ -45,7 +44,7 @@ TEST(LatestFrameBuffer, PutIntoFullBufferReplacesFrameAndCountsDrop)
     EXPECT_EQ(frame->index, 1u);
 }
 
-TEST(LatestFrameBuffer, TakeEmptiesBuffer)
+TEST_F(LatestFrameBufferTest, TakeEmptiesBuffer)
 {
     LatestFrameBuffer buffer;
     buffer.put(frameWithIndex(0));
@@ -55,7 +54,7 @@ TEST(LatestFrameBuffer, TakeEmptiesBuffer)
     EXPECT_TRUE(buffer.put(frameWithIndex(1))); // empty again, so it notifies again
 }
 
-TEST(LatestFrameBuffer, ConcurrentProducerAndConsumerKeepOrderAndAccountForEveryFrame)
+TEST_F(LatestFrameBufferTest, ConcurrentProducerAndConsumerKeepOrderAndAccountForEveryFrame)
 {
     LatestFrameBuffer buffer;
     constexpr std::uint64_t frameCount = 100000;

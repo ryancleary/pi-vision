@@ -8,38 +8,21 @@
 
 #include <pivision/processing/StageFactory.h>
 
+#include "Utilities.h"
+
 namespace pivision::pipeline {
-
-namespace {
-
-    std::nullopt_t fail(QString *error, const QString &message)
-    {
-        if (error)
-            *error = message;
-        return std::nullopt;
-    }
-
-    std::optional<double> number(const QJsonObject &object, const char *key)
-    {
-        const QJsonValue value = object.value(QLatin1String(key));
-        if (!value.isDouble())
-            return std::nullopt;
-        return value.toDouble();
-    }
-
-} // namespace
 
 std::optional<QList<StageConfig>> parseStageConfig(const QByteArray &json, QString *error)
 {
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(json, &parseError);
     if (parseError.error != QJsonParseError::NoError)
-        return fail(error,
+        return failWith(error,
             QStringLiteral("%1 at offset %2").arg(parseError.errorString()).arg(parseError.offset));
 
     const QJsonValue stagesValue = document.object().value(QStringLiteral("stages"));
     if (!stagesValue.isArray())
-        return fail(error, QStringLiteral("expected an object with a \"stages\" array"));
+        return failWith(error, QStringLiteral("expected an object with a \"stages\" array"));
 
     QList<StageConfig> stages;
     QSet<QString> seen;
@@ -52,9 +35,9 @@ std::optional<QList<StageConfig>> parseStageConfig(const QByteArray &json, QStri
         stage.id = object.value(QStringLiteral("id")).toString();
         const auto probe = processing::makeStage(stage.id.toStdString());
         if (!probe)
-            return fail(error, QStringLiteral("%1: unknown stage \"%2\"").arg(where, stage.id));
+            return failWith(error, QStringLiteral("%1: unknown stage \"%2\"").arg(where, stage.id));
         if (seen.contains(stage.id))
-            return fail(error, QStringLiteral("%1: stage \"%2\" listed twice").arg(where, stage.id));
+            return failWith(error, QStringLiteral("%1: stage \"%2\" listed twice").arg(where, stage.id));
         seen.insert(stage.id);
 
         stage.label = object.value(QStringLiteral("label")).toString(stage.id);
@@ -68,20 +51,20 @@ std::optional<QList<StageConfig>> parseStageConfig(const QByteArray &json, QStri
             StageParameterConfig parameter;
             parameter.name = p.value(QStringLiteral("name")).toString();
             parameter.label = p.value(QStringLiteral("label")).toString(parameter.name);
-            const auto value = number(p, "value");
-            const auto minimum = number(p, "min");
-            const auto maximum = number(p, "max");
+            const auto value = jsonNumber(p, "value");
+            const auto minimum = jsonNumber(p, "min");
+            const auto maximum = jsonNumber(p, "max");
             if (!value || !minimum || !maximum)
-                return fail(error, QStringLiteral("%1: needs numeric value, min and max").arg(pwhere));
+                return failWith(error, QStringLiteral("%1: needs numeric value, min and max").arg(pwhere));
             if (*minimum > *maximum || *value < *minimum || *value > *maximum)
-                return fail(error, QStringLiteral("%1: value must lie within min..max").arg(pwhere));
+                return failWith(error, QStringLiteral("%1: value must lie within min..max").arg(pwhere));
             parameter.value = *value;
             parameter.minimum = *minimum;
             parameter.maximum = *maximum;
-            parameter.step = number(p, "step").value_or(1.0);
+            parameter.step = jsonNumber(p, "step").value_or(1.0);
 
             if (!probe->setParameter(parameter.name.toStdString(), parameter.value))
-                return fail(error, QStringLiteral("%1: stage \"%2\" has no parameter \"%3\"")
+                return failWith(error, QStringLiteral("%1: stage \"%2\" has no parameter \"%3\"")
                                        .arg(pwhere, stage.id, parameter.name));
             stage.parameters.append(parameter);
         }

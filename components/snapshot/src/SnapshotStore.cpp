@@ -4,48 +4,19 @@
 
 #include <QDateTime>
 #include <QDir>
-#include <QJsonDocument>
-#include <QRegularExpression>
-#include <QSaveFile>
 
 #include <unistd.h>
 
 #include <pivision/logging/Logging.h>
+#include <pivision/utils/Files.h>
+
+#include "Utilities.h"
 
 namespace pivision::snapshot {
 
-namespace {
-
-    // "000012_..." : a six-digit sequence number, then anything.
-    const QRegularExpression &numberedName()
-    {
-        static const QRegularExpression pattern(QStringLiteral("^(\\d{6})_"));
-        return pattern;
-    }
-
-    const QString kPartialPrefix = QStringLiteral(".partial-");
-
-    // The sequence number at the start of a capture's folder name.
-    int sequenceOf(const QString &name)
-    {
-        return numberedName().match(name).captured(1).toInt();
-    }
-
-    bool writeJson(const QString &path, const QJsonObject &object)
-    {
-        // QSaveFile writes to a temporary file and renames it on commit().
-        QSaveFile file(path);
-        if (!file.open(QIODevice::WriteOnly))
-            return false;
-        file.write(QJsonDocument(object).toJson(QJsonDocument::Indented));
-        return file.commit();
-    }
-
-} // namespace
-
 bool isNumberedFolder(const QString &name)
 {
-    return numberedName().match(name).hasMatch();
+    return numberedFolderPattern().match(name).hasMatch();
 }
 
 QStringList SnapshotStore::list() const
@@ -69,7 +40,7 @@ SaveResult SnapshotStore::save(const QImage &raw, const QImage &processed, QJson
     }
 
     // Leftovers from a save that was cut short (power loss, crash).
-    for (const QString &partial : dir.entryList({ kPartialPrefix + QLatin1Char('*') },
+    for (const QString &partial : dir.entryList({ partialFolderName(QStringLiteral("*")) },
              QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot))
         QDir(dir.filePath(partial)).removeRecursively();
 
@@ -81,7 +52,7 @@ SaveResult SnapshotStore::save(const QImage &raw, const QImage &processed, QJson
                       .arg(now.toString(QStringLiteral("yyyy-MM-dd_HHmmss")));
     result.path = dir.filePath(result.name);
 
-    const QString partialPath = dir.filePath(kPartialPrefix + result.name);
+    const QString partialPath = dir.filePath(partialFolderName(result.name));
     QDir partial(partialPath);
     info.insert(QStringLiteral("sequence"), sequence);
     info.insert(QStringLiteral("time"), now.toString(Qt::ISODate));
@@ -89,7 +60,7 @@ SaveResult SnapshotStore::save(const QImage &raw, const QImage &processed, QJson
     const bool written = dir.mkpath(partialPath)
         && raw.save(partial.filePath(QStringLiteral("raw.png")))
         && processed.save(partial.filePath(QStringLiteral("processed.png")))
-        && writeJson(partial.filePath(QStringLiteral("info.json")), info)
+        && utils::writeJsonFile(partial.filePath(QStringLiteral("info.json")), info)
         && dir.rename(partialPath, result.path);
     if (!written) {
         partial.removeRecursively();

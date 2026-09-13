@@ -7,23 +7,9 @@
 #include <QVariantMap>
 
 #include <pivision/logging/Logging.h>
+#include <pivision/utils/Strings.h>
 
 namespace pivision::display {
-
-namespace {
-
-    // Four refreshes a second: readable, and cheap for QML on the Pi.
-    constexpr std::chrono::milliseconds kRefreshInterval(250);
-
-    QStringList toQStringList(const std::vector<std::string> &labels)
-    {
-        QStringList list;
-        for (const std::string &label : labels)
-            list.append(QString::fromStdString(label));
-        return list;
-    }
-
-} // namespace
 
 MetricsMonitor::MetricsMonitor(
     pipeline::Pipeline *pipeline, const QList<pipeline::StageConfig> &stages, QObject *parent)
@@ -75,13 +61,13 @@ QVariantList MetricsMonitor::stages() const
 
 QStringList MetricsMonitor::throttleNow() const
 {
-    return throttleFlags_ ? toQStringList(system::activeThrottleConditions(*throttleFlags_))
+    return throttleFlags_ ? utils::toQStringList(system::activeThrottleConditions(*throttleFlags_))
                           : QStringList();
 }
 
 QStringList MetricsMonitor::throttleSinceBoot() const
 {
-    return throttleFlags_ ? toQStringList(system::pastThrottleConditions(*throttleFlags_))
+    return throttleFlags_ ? utils::toQStringList(system::pastThrottleConditions(*throttleFlags_))
                           : QStringList();
 }
 

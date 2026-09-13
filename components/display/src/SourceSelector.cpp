@@ -7,18 +7,9 @@
 #include <pivision/capture/CameraDiscovery.h>
 #include <pivision/logging/Logging.h>
 
+#include "Utilities.h"
+
 namespace pivision::display {
-
-namespace {
-
-    const QString kTestPatternSpec = QStringLiteral("test-pattern");
-
-    QVariantMap entry(const QString &label, const QString &spec)
-    {
-        return { { QStringLiteral("label"), label }, { QStringLiteral("spec"), spec } };
-    }
-
-} // namespace
 
 SourceSelector::SourceSelector(pipeline::Pipeline *pipeline, const capture::CameraConfig &camera,
     const capture::TestPatternConfig &pattern, QObject *parent)
@@ -44,10 +35,10 @@ void SourceSelector::refresh()
     QVariantList sources;
     for (const capture::CameraInfo &camera : capture::findCameras()) {
         const QString device = QString::fromStdString(camera.device);
-        sources.append(entry(
+        sources.append(sourceEntry(
             QStringLiteral("%1 (%2)").arg(QString::fromStdString(camera.name), device), device));
     }
-    sources.append(entry(QStringLiteral("Test pattern"), kTestPatternSpec));
+    sources.append(sourceEntry(QStringLiteral("Test pattern"), QString(kTestPatternSpec)));
 
     qCDebug(logging::lcDisplay) << "Found" << sources.size() - 1 << "camera(s)";
     if (sources != sources_) {

@@ -8,32 +8,31 @@
 
 namespace pivision::processing {
 
-namespace {
+class StageChainTest : public ::testing::Test {
+protected:
+    static cv::Mat sampleImage()
+    {
+        cv::Mat image(120, 160, CV_8UC3, cv::Scalar(30, 60, 90));
+        cv::circle(image, cv::Point(80, 60), 30, cv::Scalar(220, 220, 220), cv::FILLED);
+        return image;
+    }
 
-cv::Mat sampleImage()
-{
-    cv::Mat image(120, 160, CV_8UC3, cv::Scalar(30, 60, 90));
-    cv::circle(image, cv::Point(80, 60), 30, cv::Scalar(220, 220, 220), cv::FILLED);
-    return image;
-}
+    static StageChain fullChain(bool enabled)
+    {
+        StageChain chain;
+        for (const char *id : { "clahe", "grayscale", "blur", "edges" })
+            chain.add(makeStage(id), enabled);
+        return chain;
+    }
+};
 
-StageChain fullChain(bool enabled)
-{
-    StageChain chain;
-    for (const char *id : { "clahe", "grayscale", "blur", "edges" })
-        chain.add(makeStage(id), enabled);
-    return chain;
-}
-
-} // namespace
-
-TEST(StageChain, KeepsTheOrderStagesWereAddedIn)
+TEST_F(StageChainTest, KeepsTheOrderStagesWereAddedIn)
 {
     StageChain chain = fullChain(false);
     EXPECT_EQ(chain.order(), (std::vector<std::string> { "clahe", "grayscale", "blur", "edges" }));
 }
 
-TEST(StageChain, WithNothingEnabledOutputEqualsInput)
+TEST_F(StageChainTest, WithNothingEnabledOutputEqualsInput)
 {
     StageChain chain = fullChain(false);
     EXPECT_FALSE(chain.anyEnabled());
@@ -46,7 +45,7 @@ TEST(StageChain, WithNothingEnabledOutputEqualsInput)
     EXPECT_TRUE(timings.empty());
 }
 
-TEST(StageChain, RunsOnlyEnabledStagesInOrderAndTimesThem)
+TEST_F(StageChainTest, RunsOnlyEnabledStagesInOrderAndTimesThem)
 {
     StageChain chain = fullChain(false);
     ASSERT_TRUE(chain.setEnabled("blur", true));
@@ -63,7 +62,7 @@ TEST(StageChain, RunsOnlyEnabledStagesInOrderAndTimesThem)
     EXPECT_EQ(out.channels(), 1);
 }
 
-TEST(StageChain, OutputIsIndependentOfLaterRuns)
+TEST_F(StageChainTest, OutputIsIndependentOfLaterRuns)
 {
     StageChain chain = fullChain(false);
     chain.setEnabled("blur", true);
@@ -77,7 +76,7 @@ TEST(StageChain, OutputIsIndependentOfLaterRuns)
     EXPECT_EQ(cv::norm(first, saved, cv::NORM_L1), 0.0);
 }
 
-TEST(StageChain, UnknownIdsAreReported)
+TEST_F(StageChainTest, UnknownIdsAreReported)
 {
     StageChain chain = fullChain(true);
     EXPECT_FALSE(chain.setEnabled("sharpen", true));
@@ -86,7 +85,7 @@ TEST(StageChain, UnknownIdsAreReported)
     EXPECT_TRUE(chain.setParameter("blur", "size", 9.0));
 }
 
-TEST(StageChain, FullChainEndsInAnEdgeMap)
+TEST_F(StageChainTest, FullChainEndsInAnEdgeMap)
 {
     StageChain chain = fullChain(true);
     cv::Mat out;
