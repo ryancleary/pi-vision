@@ -6,13 +6,13 @@ add_library(pivision_pipeline STATIC
     private/FrameProcessor.h
     private/FrameProducer.h
     private/RawFrame.h
-    private/Utilities.h
+    private/Utils.h
     src/FrameMetrics.cpp
     src/FrameProcessor.cpp
     src/FrameProducer.cpp
     src/Pipeline.cpp
     src/StageConfig.cpp
-    src/Utilities.cpp
+    src/Utils.cpp
 )
 add_library(pivision::pipeline ALIAS pivision_pipeline)
 

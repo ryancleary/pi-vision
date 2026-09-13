@@ -1,5 +1,5 @@
-#ifndef PIVISION_PROCESSING_UTILITIES_H
-#define PIVISION_PROCESSING_UTILITIES_H
+#ifndef PIVISION_PROCESSING_UTILS_H
+#define PIVISION_PROCESSING_UTILS_H
 
 namespace pivision::processing {
 
@@ -10,4 +10,4 @@ int validGaussianKernelSize(double requested);
 
 } // namespace pivision::processing
 
-#endif // PIVISION_PROCESSING_UTILITIES_H
+#endif // PIVISION_PROCESSING_UTILS_H

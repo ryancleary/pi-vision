@@ -30,7 +30,7 @@ protected:
     }
 };
 
-TEST_F(VideoSourceTest, ReadsFramesOfTheFileSize)
+TEST_F(VideoSourceTest, GivenAVideoFile_WhenReading_ThenFramesHaveTheFileSize)
 {
     auto source = makeVideoSource(writeTestVideo());
     ASSERT_TRUE(source->open());
@@ -43,7 +43,7 @@ TEST_F(VideoSourceTest, ReadsFramesOfTheFileSize)
     EXPECT_DOUBLE_EQ(source->nominalFps(), 25.0);
 }
 
-TEST_F(VideoSourceTest, LoopsAtEndOfFile)
+TEST_F(VideoSourceTest, GivenAVideoFile_WhenReadingPastTheEnd_ThenItLoops)
 {
     auto source = makeVideoSource(writeTestVideo());
     ASSERT_TRUE(source->open());
@@ -54,13 +54,13 @@ TEST_F(VideoSourceTest, LoopsAtEndOfFile)
     EXPECT_EQ(frame.index, static_cast<std::uint64_t>(kFrameCount * 2));
 }
 
-TEST_F(VideoSourceTest, NameIsTheFileName)
+TEST_F(VideoSourceTest, GivenAVideoFile_WhenAskingTheName_ThenItIsTheFileName)
 {
     auto source = makeVideoSource("/some/dir/clip.mp4");
     EXPECT_EQ(source->name(), "clip.mp4");
 }
 
-TEST_F(VideoSourceTest, OpenFailsForMissingFile)
+TEST_F(VideoSourceTest, GivenAMissingFile_WhenOpening_ThenOpenFails)
 {
     auto source = makeVideoSource("/nonexistent/clip.avi");
     EXPECT_FALSE(source->open());
@@ -69,7 +69,7 @@ TEST_F(VideoSourceTest, OpenFailsForMissingFile)
     EXPECT_FALSE(source->read(frame));
 }
 
-TEST(SourceFromSpec, PathsUnderDevVideoAreCameras)
+TEST(SourceFromSpecTest, GivenAPathUnderDevVideo_WhenMakingASource_ThenItIsACamera)
 {
     EXPECT_EQ(makeSourceFromSpec("/dev/video7")->name(), "/dev/video7");
     EXPECT_EQ(makeSourceFromSpec("/tmp/clip.avi")->name(), "clip.avi");

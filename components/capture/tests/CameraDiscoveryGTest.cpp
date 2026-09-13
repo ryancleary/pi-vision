@@ -9,12 +9,12 @@ namespace pivision::capture {
 
 namespace fs = std::filesystem;
 
-TEST(CameraDiscovery, MissingDirectoryGivesNoCameras)
+TEST(CameraDiscoveryTest, GivenAMissingDirectory_WhenFindingCameras_ThenThereAreNone)
 {
     EXPECT_TRUE(findCameras("/nonexistent").empty());
 }
 
-TEST(CameraDiscovery, IgnoresNodesThatAreNotCaptureDevices)
+TEST(CameraDiscoveryTest, GivenNodesThatAreNotCaptureDevices_WhenFindingCameras_ThenTheyAreIgnored)
 {
     // Plain files named like device nodes: they open, but the V4L2 query fails.
     const fs::path dir = fs::temp_directory_path() / "pivision-fake-dev";
@@ -27,7 +27,7 @@ TEST(CameraDiscovery, IgnoresNodesThatAreNotCaptureDevices)
     fs::remove_all(dir);
 }
 
-TEST(CameraDiscovery, DescribeRejectsMissingAndNonDeviceFiles)
+TEST(CameraDiscoveryTest, GivenMissingOrNonDeviceFiles_WhenDescribing_ThenTheyAreRejected)
 {
     EXPECT_FALSE(pivision::capture::describeCamera("/nonexistent/video0").has_value());
     EXPECT_FALSE(pivision::capture::describeCamera("/etc/hostname").has_value());

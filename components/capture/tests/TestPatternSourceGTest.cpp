@@ -18,7 +18,7 @@ protected:
     }
 };
 
-TEST_F(TestPatternSourceTest, ProducesFramesOfConfiguredSizeAndType)
+TEST_F(TestPatternSourceTest, GivenAConfig_WhenReading_ThenFramesHaveItsSizeAndType)
 {
     auto source = makeTestPatternSource(smallConfig());
     ASSERT_TRUE(source->open());
@@ -30,7 +30,7 @@ TEST_F(TestPatternSourceTest, ProducesFramesOfConfiguredSizeAndType)
     EXPECT_EQ(frame.image.type(), CV_8UC3);
 }
 
-TEST_F(TestPatternSourceTest, IndexStartsAtZeroAndIncrements)
+TEST_F(TestPatternSourceTest, GivenAnOpenSource_WhenReadingRepeatedly_ThenTheIndexCountsUpFromZero)
 {
     auto source = makeTestPatternSource(smallConfig());
     ASSERT_TRUE(source->open());
@@ -42,7 +42,7 @@ TEST_F(TestPatternSourceTest, IndexStartsAtZeroAndIncrements)
     }
 }
 
-TEST_F(TestPatternSourceTest, ConsecutiveFramesDiffer)
+TEST_F(TestPatternSourceTest, GivenAnOpenSource_WhenReadingTwice_ThenTheFramesDiffer)
 {
     auto source = makeTestPatternSource(smallConfig());
     ASSERT_TRUE(source->open());
@@ -54,7 +54,7 @@ TEST_F(TestPatternSourceTest, ConsecutiveFramesDiffer)
     EXPECT_GT(cv::norm(first.image, second.image, cv::NORM_L1), 0.0);
 }
 
-TEST_F(TestPatternSourceTest, IsDeterministic)
+TEST_F(TestPatternSourceTest, GivenTwoSourcesWithTheSameConfig_WhenReading_ThenTheirFramesMatch)
 {
     auto a = makeTestPatternSource(smallConfig());
     auto b = makeTestPatternSource(smallConfig());
@@ -70,21 +70,21 @@ TEST_F(TestPatternSourceTest, IsDeterministic)
     EXPECT_EQ(cv::norm(frameA.image, frameB.image, cv::NORM_L1), 0.0);
 }
 
-TEST_F(TestPatternSourceTest, ReadFailsBeforeOpen)
+TEST_F(TestPatternSourceTest, GivenAnUnopenedSource_WhenReading_ThenReadFails)
 {
     auto source = makeTestPatternSource(smallConfig());
     Frame frame;
     EXPECT_FALSE(source->read(frame));
 }
 
-TEST_F(TestPatternSourceTest, OpenFailsForInvalidSize)
+TEST_F(TestPatternSourceTest, GivenAnInvalidSize_WhenOpening_ThenOpenFails)
 {
     TestPatternConfig config = smallConfig();
     config.width = 0;
     EXPECT_FALSE(makeTestPatternSource(config)->open());
 }
 
-TEST_F(TestPatternSourceTest, OpenFailsForInvalidFrameRate)
+TEST_F(TestPatternSourceTest, GivenAnInvalidFrameRate_WhenOpening_ThenOpenFails)
 {
     TestPatternConfig config = smallConfig();
     config.fps = 0.0;

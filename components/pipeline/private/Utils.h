@@ -1,5 +1,5 @@
-#ifndef PIVISION_PIPELINE_UTILITIES_H
-#define PIVISION_PIPELINE_UTILITIES_H
+#ifndef PIVISION_PIPELINE_UTILS_H
+#define PIVISION_PIPELINE_UTILS_H
 
 #include <chrono>
 #include <optional>
@@ -33,4 +33,4 @@ std::optional<double> jsonNumber(const QJsonObject &object, const char *key);
 
 } // namespace pivision::pipeline
 
-#endif // PIVISION_PIPELINE_UTILITIES_H
+#endif // PIVISION_PIPELINE_UTILS_H

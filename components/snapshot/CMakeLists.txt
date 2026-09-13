@@ -1,10 +1,10 @@
 add_library(pivision_snapshot STATIC
     include/pivision/snapshot/Export.h
     include/pivision/snapshot/SnapshotStore.h
-    private/Utilities.h
+    private/Utils.h
     src/Export.cpp
     src/SnapshotStore.cpp
-    src/Utilities.cpp
+    src/Utils.cpp
 )
 add_library(pivision::snapshot ALIAS pivision_snapshot)
 

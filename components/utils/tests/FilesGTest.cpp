@@ -31,7 +31,7 @@ protected:
     QTemporaryDir root_;
 };
 
-TEST_F(FilesTest, CopyTreeCopiesNestedFiles)
+TEST_F(FilesTest, GivenNestedFiles_WhenCopyingTheTree_ThenAllAreCopied)
 {
     writeFile(QStringLiteral("from/a.txt"), "a");
     writeFile(QStringLiteral("from/sub/b.txt"), "b");
@@ -40,12 +40,12 @@ TEST_F(FilesTest, CopyTreeCopiesNestedFiles)
     EXPECT_EQ(readFile(QStringLiteral("to/sub/b.txt")), "b");
 }
 
-TEST_F(FilesTest, CopyFileContentsFailsForMissingSource)
+TEST_F(FilesTest, GivenAMissingSource_WhenCopyingContents_ThenItFails)
 {
     EXPECT_FALSE(copyFileContents(root_.filePath(QStringLiteral("missing")), root_.filePath(QStringLiteral("out"))));
 }
 
-TEST_F(FilesTest, WriteJsonFileRoundTrips)
+TEST_F(FilesTest, GivenAJsonObject_WhenWrittenAndReadBack_ThenItMatches)
 {
     const QString path = root_.filePath(QStringLiteral("info.json"));
     ASSERT_TRUE(writeJsonFile(path, QJsonObject { { QStringLiteral("answer"), 42 } }));

@@ -7,7 +7,7 @@
 #include <pivision/capture/CameraDiscovery.h>
 #include <pivision/logging/Logging.h>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::display {
 

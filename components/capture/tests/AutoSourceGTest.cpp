@@ -4,7 +4,7 @@
 
 namespace pivision::capture {
 
-TEST(AutoSource, FallsBackToTestPatternWhenNoCameraOpens)
+TEST(AutoSourceTest, GivenNoCameraOpens_WhenOpening_ThenItFallsBackToTheTestPattern)
 {
     TestPatternConfig fallback;
     fallback.width = 320;
@@ -21,7 +21,7 @@ TEST(AutoSource, FallsBackToTestPatternWhenNoCameraOpens)
     EXPECT_EQ(frame.image.rows, 240);
 }
 
-TEST(AutoSource, ReadFailsBeforeOpenAndAfterClose)
+TEST(AutoSourceTest, GivenAClosedSource_WhenReading_ThenReadFails)
 {
     auto source = makeAutoSource(std::vector<std::string> {});
     Frame frame;

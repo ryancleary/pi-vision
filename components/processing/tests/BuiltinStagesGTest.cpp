@@ -23,7 +23,7 @@ protected:
     }
 };
 
-TEST_F(BuiltinStagesTest, EveryKnownIdMakesAStageWithThatId)
+TEST_F(BuiltinStagesTest, GivenEachKnownId_WhenMakingAStage_ThenItHasThatId)
 {
     for (const std::string &id : knownStageIds()) {
         auto stage = makeStage(id);
@@ -33,7 +33,7 @@ TEST_F(BuiltinStagesTest, EveryKnownIdMakesAStageWithThatId)
     EXPECT_EQ(makeStage("sharpen"), nullptr);
 }
 
-TEST_F(BuiltinStagesTest, EveryStageAcceptsColorAndGrayAndKeepsTheSize)
+TEST_F(BuiltinStagesTest, GivenColorOrGrayInput_WhenAnyStageRuns_ThenTheSizeIsKept)
 {
     const cv::Mat color = sampleImage();
     cv::Mat gray;
@@ -50,7 +50,7 @@ TEST_F(BuiltinStagesTest, EveryStageAcceptsColorAndGrayAndKeepsTheSize)
     }
 }
 
-TEST_F(BuiltinStagesTest, GrayscaleAndEdgesProduceOneChannel)
+TEST_F(BuiltinStagesTest, GivenColorInput_WhenGrayscaleOrEdgesRun_ThenTheOutputHasOneChannel)
 {
     const cv::Mat color = sampleImage();
     for (const char *id : { "grayscale", "edges" }) {
@@ -60,7 +60,7 @@ TEST_F(BuiltinStagesTest, GrayscaleAndEdgesProduceOneChannel)
     }
 }
 
-TEST_F(BuiltinStagesTest, ClaheAndBlurKeepColorAndChangeTheImage)
+TEST_F(BuiltinStagesTest, GivenColorInput_WhenClaheOrBlurRun_ThenColorIsKeptAndTheImageChanges)
 {
     const cv::Mat color = sampleImage();
     for (const char *id : { "clahe", "blur" }) {
@@ -71,7 +71,7 @@ TEST_F(BuiltinStagesTest, ClaheAndBlurKeepColorAndChangeTheImage)
     }
 }
 
-TEST_F(BuiltinStagesTest, EdgesFindTheSquareOutline)
+TEST_F(BuiltinStagesTest, GivenASquare_WhenEdgesRun_ThenItsOutlineIsFound)
 {
     cv::Mat out;
     makeStage("edges")->process(sampleImage(), out);
@@ -80,7 +80,7 @@ TEST_F(BuiltinStagesTest, EdgesFindTheSquareOutline)
     EXPECT_EQ(cv::countNonZero(out(cv::Rect(70, 50, 20, 20))), 0);
 }
 
-TEST_F(BuiltinStagesTest, ParametersAreClampedAndUnknownNamesRejected)
+TEST_F(BuiltinStagesTest, GivenOutOfRangeOrUnknownParameters_WhenSetting_ThenValuesAreClampedAndUnknownNamesRejected)
 {
     auto blur = makeStage("blur");
     EXPECT_TRUE(blur->setParameter("size", 6));

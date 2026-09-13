@@ -1,5 +1,5 @@
-#ifndef PIVISION_SYSTEM_UTILITIES_H
-#define PIVISION_SYSTEM_UTILITIES_H
+#ifndef PIVISION_SYSTEM_UTILS_H
+#define PIVISION_SYSTEM_UTILS_H
 
 #include <array>
 #include <chrono>
@@ -38,4 +38,4 @@ std::chrono::microseconds processCpuTime();
 
 } // namespace pivision::system
 
-#endif // PIVISION_SYSTEM_UTILITIES_H
+#endif // PIVISION_SYSTEM_UTILS_H

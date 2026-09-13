@@ -10,7 +10,7 @@
 #include <pivision/processing/StageFactory.h>
 #include <pivision/utils/Images.h>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::pipeline {
 

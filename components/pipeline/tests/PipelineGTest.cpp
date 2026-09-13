@@ -55,7 +55,7 @@ protected:
     }
 };
 
-TEST_F(PipelineTest, DeliversRawAndProcessedFramesFromTheSameCapture)
+TEST_F(PipelineTest, GivenNoStages_WhenRunning_ThenRawAndProcessedComeFromTheSameCapture)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.start();
@@ -69,7 +69,7 @@ TEST_F(PipelineTest, DeliversRawAndProcessedFramesFromTheSameCapture)
     EXPECT_TRUE(frame->timings.empty());
 }
 
-TEST_F(PipelineTest, ProcessedFramesAreScaledDownToTheProcessSize)
+TEST_F(PipelineTest, GivenALargeSource_WhenRunning_ThenProcessedFramesShrinkToTheProcessSize)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(640)));
     pipeline.setProcessSize(QSize(320, 240));
@@ -81,7 +81,7 @@ TEST_F(PipelineTest, ProcessedFramesAreScaledDownToTheProcessSize)
     EXPECT_EQ(frame->raw.size(), QSize(640, 480)); // raw stays full size
 }
 
-TEST_F(PipelineTest, SmallFramesAreNotScaledUp)
+TEST_F(PipelineTest, GivenASmallSource_WhenRunning_ThenProcessedFramesAreNotEnlarged)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(160)));
     pipeline.setProcessSize(QSize(320, 240));
@@ -90,7 +90,7 @@ TEST_F(PipelineTest, SmallFramesAreNotScaledUp)
     EXPECT_EQ(pipeline.latestFrame()->processed.size(), QSize(160, 120));
 }
 
-TEST_F(PipelineTest, EnabledStagesShapeTheProcessedFrame)
+TEST_F(PipelineTest, GivenEnabledStages_WhenRunning_ThenTheyShapeTheProcessedFrame)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.setStages({ stage("blur", true), stage("edges", true) });
@@ -105,7 +105,7 @@ TEST_F(PipelineTest, EnabledStagesShapeTheProcessedFrame)
     EXPECT_EQ(timings[1].id, "edges");
 }
 
-TEST_F(PipelineTest, StagesCanBeToggledWhileRunning)
+TEST_F(PipelineTest, GivenARunningPipeline_WhenAStageIsToggled_ThenTheOutputFollows)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.setStages({ stage("grayscale", false) });
@@ -122,7 +122,7 @@ TEST_F(PipelineTest, StagesCanBeToggledWhileRunning)
         pipeline, [](const DisplayFrame &f) { return f.processed.format() == QImage::Format_BGR888; }));
 }
 
-TEST_F(PipelineTest, SwitchingSourceDeliversFramesFromTheNewSource)
+TEST_F(PipelineTest, GivenARunningPipeline_WhenTheSourceIsSwitched_ThenFramesComeFromTheNewSource)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.start();
@@ -136,7 +136,7 @@ TEST_F(PipelineTest, SwitchingSourceDeliversFramesFromTheNewSource)
     EXPECT_TRUE(pipeline.errorString().isEmpty());
 }
 
-TEST_F(PipelineTest, SwitchingToSourceThatFailsReportsErrorAndStopsFrames)
+TEST_F(PipelineTest, GivenARunningPipeline_WhenSwitchedToAFailingSource_ThenAnErrorIsReportedAndFramesStop)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.start();
@@ -153,7 +153,7 @@ TEST_F(PipelineTest, SwitchingToSourceThatFailsReportsErrorAndStopsFrames)
     EXPECT_FALSE(pipeline.latestFrame().has_value());
 }
 
-TEST_F(PipelineTest, RecoversWhenAWorkingSourceIsSetAfterAFailure)
+TEST_F(PipelineTest, GivenAFailedSource_WhenAWorkingSourceIsSet_ThenFramesResume)
 {
     Pipeline pipeline(capture::makeCameraSource("/nonexistent/video0"));
     QSignalSpy failed(&pipeline, &Pipeline::failed);
@@ -165,7 +165,7 @@ TEST_F(PipelineTest, RecoversWhenAWorkingSourceIsSetAfterAFailure)
     EXPECT_TRUE(pipeline.errorString().isEmpty());
 }
 
-TEST_F(PipelineTest, SourceNameFollowsTheSourceThatOpened)
+TEST_F(PipelineTest, GivenASourceSwitch_WhenTheNewSourceOpens_ThenTheSourceNameFollows)
 {
     Pipeline pipeline(capture::makeAutoSource(std::vector<std::string> {}, {}, patternOfWidth(320)));
     EXPECT_EQ(pipeline.sourceName(), QStringLiteral("Auto"));
@@ -176,7 +176,7 @@ TEST_F(PipelineTest, SourceNameFollowsTheSourceThatOpened)
     EXPECT_EQ(pipeline.sourceName(), QStringLiteral("Test pattern"));
 }
 
-TEST_F(PipelineTest, SourceSetBeforeStartIsTheOneThatRuns)
+TEST_F(PipelineTest, GivenASourceSetBeforeStart_WhenStarted_ThenThatSourceRuns)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.setSource(capture::makeTestPatternSource(patternOfWidth(160)));
@@ -184,7 +184,7 @@ TEST_F(PipelineTest, SourceSetBeforeStartIsTheOneThatRuns)
     EXPECT_TRUE(waitForRawWidth(pipeline, 160));
 }
 
-TEST_F(PipelineTest, StopIsSafeWithoutStartAndWhenRepeated)
+TEST_F(PipelineTest, GivenAPipeline_WhenStoppedWithoutStartOrTwice_ThenNothingBreaks)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
     pipeline.stop();
@@ -194,7 +194,7 @@ TEST_F(PipelineTest, StopIsSafeWithoutStartAndWhenRepeated)
     SUCCEED();
 }
 
-TEST_F(PipelineTest, MetricsCountArrivingFramesAndResetOnSourceSwitch)
+TEST_F(PipelineTest, GivenArrivingFrames_WhenTheSourceIsSwitched_ThenMetricsReset)
 {
     Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(160)));
     pipeline.start();

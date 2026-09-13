@@ -8,7 +8,7 @@
 
 #include <pivision/processing/StageFactory.h>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::pipeline {
 

@@ -26,7 +26,7 @@ protected:
     }
 };
 
-TEST_F(StageConfigTest, ReadsStagesInOrderWithParameters)
+TEST_F(StageConfigTest, GivenValidJson_WhenParsing_ThenStagesAndParametersAreReadInOrder)
 {
     QString error;
     const auto stages = parseStageConfig(kValid, &error);
@@ -48,20 +48,20 @@ TEST_F(StageConfigTest, ReadsStagesInOrderWithParameters)
     EXPECT_EQ(blur.parameters[0].step, 2.0);
 }
 
-TEST_F(StageConfigTest, RejectsBrokenJson)
+TEST_F(StageConfigTest, GivenBrokenJson_WhenParsing_ThenItIsRejected)
 {
     EXPECT_FALSE(errorFor(R"({ "stages": [ )").isEmpty());
     EXPECT_TRUE(errorFor(R"([1, 2])").contains(QStringLiteral("stages")));
 }
 
-TEST_F(StageConfigTest, RejectsUnknownAndDuplicateStages)
+TEST_F(StageConfigTest, GivenUnknownOrDuplicateStages_WhenParsing_ThenTheyAreRejected)
 {
     EXPECT_TRUE(errorFor(R"({ "stages": [ { "id": "sharpen" } ] })").contains(QStringLiteral("sharpen")));
     EXPECT_TRUE(errorFor(R"({ "stages": [ { "id": "blur" }, { "id": "blur" } ] })")
                     .contains(QStringLiteral("twice")));
 }
 
-TEST_F(StageConfigTest, RejectsBadParameters)
+TEST_F(StageConfigTest, GivenBadParameters_WhenParsing_ThenTheyAreRejected)
 {
     // A parameter the stage doesn't have.
     EXPECT_TRUE(errorFor(R"({ "stages": [ { "id": "blur", "parameters": [

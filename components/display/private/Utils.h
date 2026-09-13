@@ -1,5 +1,5 @@
-#ifndef PIVISION_DISPLAY_UTILITIES_H
-#define PIVISION_DISPLAY_UTILITIES_H
+#ifndef PIVISION_DISPLAY_UTILS_H
+#define PIVISION_DISPLAY_UTILS_H
 
 #include <QJsonArray>
 #include <QList>
@@ -22,4 +22,4 @@ QVariantMap sourceEntry(const QString &label, const QString &spec);
 
 } // namespace pivision::display
 
-#endif // PIVISION_DISPLAY_UTILITIES_H
+#endif // PIVISION_DISPLAY_UTILS_H

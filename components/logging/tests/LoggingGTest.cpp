@@ -20,7 +20,7 @@ protected:
     }
 };
 
-TEST_F(LoggingTest, WritesLevelCategoryAndMessageToTheLogFile)
+TEST_F(LoggingTest, GivenALogFile_WhenLogging_ThenLevelCategoryAndMessageAreWritten)
 {
     QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("nested/pivision.log"));
@@ -35,7 +35,7 @@ TEST_F(LoggingTest, WritesLevelCategoryAndMessageToTheLogFile)
         << log.toStdString();
 }
 
-TEST_F(LoggingTest, EachInstallStartsAFreshFile)
+TEST_F(LoggingTest, GivenAnExistingLogFile_WhenInstallingAgain_ThenTheFileStartsFresh)
 {
     QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("pivision.log"));
@@ -50,7 +50,7 @@ TEST_F(LoggingTest, EachInstallStartsAFreshFile)
     EXPECT_TRUE(log.contains(QStringLiteral("second session")));
 }
 
-TEST_F(LoggingTest, DebugIsOffUntilVerbose)
+TEST_F(LoggingTest, GivenDefaultSettings_WhenLoggingDebug_ThenItIsHiddenUntilVerbose)
 {
     QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("pivision.log"));
@@ -66,7 +66,7 @@ TEST_F(LoggingTest, DebugIsOffUntilVerbose)
     QLoggingCategory::setFilterRules({});
 }
 
-TEST_F(LoggingTest, UnwritableFileFailsButLoggingContinues)
+TEST_F(LoggingTest, GivenAnUnwritableLogFile_WhenInstalling_ThenItFailsButLoggingContinues)
 {
     EXPECT_FALSE(install(QStringLiteral("/proc/pivision-cannot-write/pivision.log")));
     qCInfo(lcApp) << "still logs to stderr";

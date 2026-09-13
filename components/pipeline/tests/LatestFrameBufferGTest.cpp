@@ -19,20 +19,20 @@ protected:
     }
 };
 
-TEST_F(LatestFrameBufferTest, StartsEmpty)
+TEST_F(LatestFrameBufferTest, GivenANewBuffer_WhenTaking_ThenItIsEmpty)
 {
     LatestFrameBuffer buffer;
     EXPECT_FALSE(buffer.take().has_value());
     EXPECT_EQ(buffer.droppedCount(), 0u);
 }
 
-TEST_F(LatestFrameBufferTest, PutIntoEmptyBufferRequestsNotification)
+TEST_F(LatestFrameBufferTest, GivenAnEmptyBuffer_WhenPutting_ThenTheReaderNeedsNotifying)
 {
     LatestFrameBuffer buffer;
     EXPECT_TRUE(buffer.put(frameWithIndex(0)));
 }
 
-TEST_F(LatestFrameBufferTest, PutIntoFullBufferReplacesFrameAndCountsDrop)
+TEST_F(LatestFrameBufferTest, GivenAFullBuffer_WhenPutting_ThenTheFrameIsReplacedAndADropCounted)
 {
     LatestFrameBuffer buffer;
     buffer.put(frameWithIndex(0));
@@ -44,7 +44,7 @@ TEST_F(LatestFrameBufferTest, PutIntoFullBufferReplacesFrameAndCountsDrop)
     EXPECT_EQ(frame->index, 1u);
 }
 
-TEST_F(LatestFrameBufferTest, TakeEmptiesBuffer)
+TEST_F(LatestFrameBufferTest, GivenAFullBuffer_WhenTaking_ThenItBecomesEmpty)
 {
     LatestFrameBuffer buffer;
     buffer.put(frameWithIndex(0));
@@ -54,7 +54,7 @@ TEST_F(LatestFrameBufferTest, TakeEmptiesBuffer)
     EXPECT_TRUE(buffer.put(frameWithIndex(1))); // empty again, so it notifies again
 }
 
-TEST_F(LatestFrameBufferTest, ConcurrentProducerAndConsumerKeepOrderAndAccountForEveryFrame)
+TEST_F(LatestFrameBufferTest, GivenAConcurrentProducerAndConsumer_WhenRunning_ThenOrderIsKeptAndEveryFrameIsAccountedFor)
 {
     LatestFrameBuffer buffer;
     constexpr std::uint64_t frameCount = 100000;

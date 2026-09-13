@@ -6,7 +6,7 @@ namespace pivision::capture {
 
 // Real capture needs hardware, so CI only covers what happens without a camera.
 
-TEST(CameraSource, OpenFailsForMissingDevice)
+TEST(CameraSourceTest, GivenAMissingDevice_WhenOpening_ThenOpenFails)
 {
     auto source = makeCameraSource("/nonexistent/video0");
     EXPECT_FALSE(source->open());
@@ -15,7 +15,7 @@ TEST(CameraSource, OpenFailsForMissingDevice)
     EXPECT_FALSE(source->read(frame));
 }
 
-TEST(CameraSource, ReportsDeviceAndRequestedRate)
+TEST(CameraSourceTest, GivenACameraSource_WhenAskingNameAndRate_ThenTheyAreTheDeviceAndRequestedRate)
 {
     CameraConfig config;
     config.fps = 15.0;

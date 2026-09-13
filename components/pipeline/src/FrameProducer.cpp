@@ -7,7 +7,7 @@
 
 #include <pivision/logging/Logging.h>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::pipeline {
 

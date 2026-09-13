@@ -10,4 +10,5 @@ add_subdirectory(processing)
 add_subdirectory(pipeline)
 add_subdirectory(snapshot)
 add_subdirectory(display)
+add_subdirectory(detection)
 

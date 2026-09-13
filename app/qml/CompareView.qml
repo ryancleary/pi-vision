@@ -22,6 +22,18 @@ Item {
 
     property int mode: CompareView.ViewMode.Overlay
 
+    // The mode for a name used in config/ui.json (see knownViewModes() in
+    // UiConfig.cpp, which checks the file against the same names).
+    function modeFromName(name) {
+        switch (name) {
+        case "sideBySide": return CompareView.ViewMode.SideBySide
+        case "overlay": return CompareView.ViewMode.Overlay
+        case "pictureInPicture": return CompareView.ViewMode.PictureInPicture
+        }
+        console.warn("Unknown view mode", name)
+        return CompareView.ViewMode.Overlay
+    }
+
     // Button text for each mode.
     function modeLabel(viewMode) {
         switch (viewMode) {

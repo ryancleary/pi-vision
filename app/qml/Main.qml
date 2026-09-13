@@ -11,14 +11,6 @@ ApplicationWindow {
     height: 640
     visible: true
     title: "pi-vision"
-
-    // The compare-mode buttons in the toolbar, left to right. Reorder entries
-    // to reorder the buttons; leave one out to hide that mode.
-    readonly property var modeButtonOrder: [
-        CompareView.ViewMode.SideBySide,
-        CompareView.ViewMode.Overlay,
-        CompareView.ViewMode.PictureInPicture
-    ]
     color: Theme.background
 
     // Dark theme for every Basic-style control.
@@ -98,7 +90,8 @@ ApplicationWindow {
                 spacing: Theme.buttonGap
 
                 Repeater {
-                    model: root.modeButtonOrder
+                    // Order and choice of buttons come from config/ui.json.
+                    model: UiConfig.modeButtons.map(name => compareView.modeFromName(name))
 
                     delegate: PanelButton {
                         required property int modelData
@@ -142,6 +135,8 @@ ApplicationWindow {
                 anchors.fill: parent
                 anchors.margins: Theme.margin
                 overlayOpacity: overlayMix.value
+                // Starting mode from config/ui.json; the buttons change it after.
+                Component.onCompleted: mode = modeFromName(UiConfig.defaultMode)
             }
 
             // Short messages (capture and USB results), shown for a few seconds.

@@ -12,7 +12,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::capture {
 
