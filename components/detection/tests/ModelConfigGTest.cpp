@@ -11,9 +11,12 @@ namespace pivision::detection {
 
 class ModelConfigTest : public ::testing::Test {
 protected:
+    // The model description under test.
+    static constexpr const char *kModelDescription = "nanodet-plus-m-1.5x-416.json";
+
     static std::string nanoDetDescription()
     {
-        return std::string(PIVISION_MODEL_DIR) + "/nanodet-plus-m-1.5x-416.json";
+        return std::string(PIVISION_MODEL_DIR) + "/" + kModelDescription;
     }
 
     static std::string readFile(const std::string &path)
@@ -48,14 +51,15 @@ TEST_F(ModelConfigTest, GivenTheNanoDetDescription_WhenLoading_ThenItsValuesAreR
     const auto config = loadModelConfig(nanoDetDescription(), &error);
     ASSERT_TRUE(config.has_value()) << error;
 
-    // Spot checks against the file; the file itself documents each value.
-    EXPECT_EQ(config->inputSize, cv::Size(416, 416));
-    EXPECT_EQ(config->channelOrder, ChannelOrder::Bgr);
-    EXPECT_EQ(config->resize, ResizeMode::Letterbox);
-    EXPECT_EQ(config->strides, (std::vector<int> { 8, 16, 32 }));
-    EXPECT_EQ(config->classes.size(), 80U);
-    EXPECT_EQ(config->classes.front(), "person");
-    EXPECT_EQ(config->classes.back(), "toothbrush");
+    // Spot checks: each expected value is copied from the description file,
+    // which also says what it means and where it comes from.
+    EXPECT_EQ(config->inputSize, cv::Size(416, 416));                // input.size
+    EXPECT_EQ(config->channelOrder, ChannelOrder::Bgr);              // input.channelOrder
+    EXPECT_EQ(config->resize, ResizeMode::Letterbox);                // input.resize
+    EXPECT_EQ(config->strides, (std::vector<int> { 8, 16, 32 }));    // output.strides
+    EXPECT_EQ(config->classes.size(), 80U);                          // the 80 COCO classes
+    EXPECT_EQ(config->classes.front(), "person");                    // first class
+    EXPECT_EQ(config->classes.back(), "toothbrush");                 // last class
 }
 
 TEST_F(ModelConfigTest, GivenADescription_WhenLoading_ThenTheModelFileIsResolvedNextToIt)
@@ -87,8 +91,10 @@ TEST_F(ModelConfigTest, GivenAnUnknownResizeMode_WhenLoading_ThenAnErrorNamesIt)
 
 TEST_F(ModelConfigTest, GivenAMeanWithTwoValues_WhenLoading_ThenAnErrorNamesIt)
 {
-    EXPECT_NE(errorAfterReplacing("[103.53, 116.28, 123.675]", "[103.53, 116.28]").find("mean"),
-        std::string::npos);
+    // input.mean as written in the file, and the same with its last value dropped.
+    const std::string mean = "[103.53, 116.28, 123.675]";
+    const std::string twoValues = "[103.53, 116.28]";
+    EXPECT_NE(errorAfterReplacing(mean, twoValues).find("mean"), std::string::npos);
 }
 
 TEST_F(ModelConfigTest, GivenBrokenJson_WhenLoading_ThenAnErrorIsReported)
