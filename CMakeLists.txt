@@ -12,6 +12,8 @@ set(PIVISION_DEV_LOG_FILE "" CACHE STRING "Default log file for development buil
 # Same idea for captures. Desktop: a folder in the repo, all kept. Device: the
 # crash partition, newest 10 kept (see app/src/main.cpp).
 set(PIVISION_DEV_CAPTURE_DIR "" CACHE STRING "Default capture folder for development builds")
+# And for models: the repo's assets/models (fetched by scripts/fetch-assets.sh).
+set(PIVISION_DEV_MODEL_DIR "" CACHE STRING "Default model folder for development builds")
 
 # Pinned to Qt 6.8 to match the meta-qt6 branch used for the Pi image.
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick

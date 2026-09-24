@@ -4,6 +4,8 @@
 
 #include <pivision/logging/Logging.h>
 
+#include "DetectionJob.h"
+#include "DetectionWorker.h"
 #include "FrameProcessor.h"
 #include "FrameProducer.h"
 #include "RawFrame.h"
@@ -13,14 +15,19 @@ namespace pivision::pipeline {
 Pipeline::Pipeline(std::unique_ptr<capture::FrameSource> source, QObject *parent)
     : QObject(parent)
     , rawBuffer_(std::make_unique<RawFrameBuffer>())
+    , detectionJobs_(std::make_unique<DetectionJobBuffer>())
+    , detectionResults_(std::make_unique<DetectionResultBuffer>())
     , sourceName_(QString::fromStdString(source->name()))
 {
     producer_ = std::make_unique<FrameProducer>(std::move(source), *rawBuffer_);
-    processor_ = std::make_unique<FrameProcessor>(*rawBuffer_, displayBuffer_);
+    processor_ = std::make_unique<FrameProcessor>(*rawBuffer_, displayBuffer_, *detectionJobs_);
+    detector_ = std::make_unique<DetectionWorker>(*detectionJobs_, *detectionResults_);
     producer_->moveToThread(&captureThread_);
     processor_->moveToThread(&processingThread_);
+    detector_->moveToThread(&detectionThread_);
     captureThread_.setObjectName(QStringLiteral("capture"));
     processingThread_.setObjectName(QStringLiteral("processing"));
+    detectionThread_.setObjectName(QStringLiteral("detection"));
 
     connect(&captureThread_, &QThread::started, producer_.get(), &FrameProducer::start);
     // Each arrow crosses a thread, so these connections are queued automatically.
@@ -29,6 +36,10 @@ Pipeline::Pipeline(std::unique_ptr<capture::FrameSource> source, QObject *parent
     connect(processor_.get(), &FrameProcessor::frameAvailable, this, &Pipeline::onProcessedFrame);
     connect(producer_.get(), &FrameProducer::opened, this, &Pipeline::onOpened);
     connect(producer_.get(), &FrameProducer::failed, this, &Pipeline::onFailed);
+    connect(processor_.get(), &FrameProcessor::detectionJobAvailable, detector_.get(),
+        &DetectionWorker::detectLatest);
+    connect(detector_.get(), &DetectionWorker::resultAvailable, this, &Pipeline::onDetectionResult);
+    connect(detector_.get(), &DetectionWorker::stateChanged, this, &Pipeline::onDetectorState);
 }
 
 Pipeline::~Pipeline() { stop(); }
@@ -37,8 +48,9 @@ void Pipeline::start()
 {
     if (captureThread_.isRunning())
         return;
-    qCDebug(logging::lcPipeline) << "Starting capture and processing threads";
-    // Processing first, so it is ready for the first frame.
+    qCDebug(logging::lcPipeline) << "Starting capture, processing and detection threads";
+    // Downstream first, so each step is ready for the first frame.
+    detectionThread_.start();
     processingThread_.start();
     captureThread_.start();
 }
@@ -58,6 +70,12 @@ void Pipeline::stop()
         processingThread_.quit();
         processingThread_.wait();
     }
+    // A detection in progress finishes first (it can't be interrupted); on the
+    // Pi that's up to about half a second.
+    if (detectionThread_.isRunning()) {
+        detectionThread_.quit();
+        detectionThread_.wait();
+    }
 }
 
 void Pipeline::setSource(std::unique_ptr<capture::FrameSource> source)
@@ -71,6 +89,7 @@ void Pipeline::setSource(std::unique_ptr<capture::FrameSource> source)
     ++generation_;
     latest_.reset();
     metrics_.clear();
+    clearDetection();
     setSourceName(QString::fromStdString(source->name()));
     setErrorString({});
     emit cleared();
@@ -147,6 +166,7 @@ void Pipeline::onFailed(const QString &message)
 {
     latest_.reset();
     metrics_.clear();
+    clearDetection();
     setErrorString(message);
     emit failed(message);
 }
@@ -165,6 +185,78 @@ void Pipeline::setErrorString(const QString &message)
         return;
     errorString_ = message;
     emit errorStringChanged();
+}
+
+void Pipeline::setModelDescription(const QString &path)
+{
+    onDetectionThread([path = path.toStdString()](DetectionWorker &worker) {
+        worker.setModelDescription(path);
+    });
+}
+
+void Pipeline::setDetectionEnabled(bool enabled)
+{
+    if (enabled == detectionEnabled_)
+        return;
+    qCInfo(logging::lcPipeline) << "Detection" << (enabled ? "on" : "off");
+    detectionEnabled_ = enabled;
+    if (!enabled)
+        clearDetection();
+    updateDetectionFeed();
+}
+
+void Pipeline::setDetectionInput(DetectionInput input)
+{
+    if (input == detectionInput_)
+        return;
+    detectionInput_ = input;
+    clearDetection(); // boxes from the other image don't fit this one
+    updateDetectionFeed();
+}
+
+void Pipeline::updateDetectionFeed()
+{
+    onProcessingThread([enabled = detectionEnabled_, input = detectionInput_](FrameProcessor &processor) {
+        processor.setDetectionFeed(enabled, input);
+    });
+}
+
+void Pipeline::clearDetection()
+{
+    // Results still on their way are recognized as stale in onDetectionResult().
+    latestDetection_.reset();
+    metrics_.clearDetections();
+    emit detectionAvailable();
+}
+
+void Pipeline::onDetectionResult()
+{
+    auto result = detectionResults_->take();
+    // Drop results for a replaced source, the other input, or after switching off.
+    if (!result || !detectionEnabled_ || result->generation != generation_
+        || result->input != detectionInput_)
+        return;
+    latestDetection_ = std::move(result);
+    metrics_.addDetection(*latestDetection_, FrameMetrics::Clock::now());
+    emit detectionAvailable();
+}
+
+void Pipeline::onDetectorState(DetectorState state, const QString &error)
+{
+    detectorState_ = state;
+    detectorError_ = error;
+    emit detectorStateChanged();
+}
+
+void Pipeline::onDetectionThread(std::function<void(DetectionWorker &)> task)
+{
+    DetectionWorker *worker = detector_.get();
+    if (!detectionThread_.isRunning()) {
+        task(*worker);
+        return;
+    }
+    QMetaObject::invokeMethod(
+        worker, [worker, task = std::move(task)] { task(*worker); }, Qt::QueuedConnection);
 }
 
 void Pipeline::onProcessingThread(std::function<void(FrameProcessor &)> task)

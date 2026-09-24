@@ -13,20 +13,26 @@
 #include <QThread>
 
 #include <pivision/capture/FrameSource.h>
+#include <pivision/pipeline/DetectionResult.h>
 #include <pivision/pipeline/FrameMetrics.h>
 #include <pivision/pipeline/LatestFrameBuffer.h>
 #include <pivision/pipeline/StageConfig.h>
 
 namespace pivision::pipeline {
 
+class DetectionWorker;
 class FrameProcessor;
 class FrameProducer;
+struct DetectionJob;
 struct RawFrame;
 
-// Capture and processing each run on their own thread:
+// Capture, processing and detection each run on their own thread:
 //   capture thread     reads the source            -> newest raw frame
 //   processing thread  scales it, runs the stages  -> newest display frame
-//   GUI thread         latestFrame() after frameAvailable()
+//                      (and, while detection is on, -> newest detection job)
+//   detection thread   runs the detector           -> newest detection result
+//   GUI thread         latestFrame() after frameAvailable(),
+//                      latestDetection() after detectionAvailable()
 // Each hand-off keeps only the newest frame, so a slow step drops frames rather
 // than falling behind, and capture never waits for processing.
 // Lives on the GUI thread.
@@ -53,6 +59,23 @@ public:
     void setProcessSize(const QSize &size);
     QSize processSize() const { return processSize_; }
 
+    // Object detection. Off until enabled; the model loads the first time it
+    // is enabled. Detection is slower than the frame rate, so it works on the
+    // newest frame whenever it's free and skips the rest. Safe to call before
+    // or after start(). Set the model description before enabling.
+    void setModelDescription(const QString &path);
+    void setDetectionEnabled(bool enabled);
+    bool detectionEnabled() const { return detectionEnabled_; }
+    void setDetectionInput(DetectionInput input);
+    DetectionInput detectionInput() const { return detectionInput_; }
+
+    // The newest detection for the current source and input; empty while
+    // detection is off, after a switch, and before the first result.
+    std::optional<DetectionResult> latestDetection() const { return latestDetection_; }
+    DetectorState detectorState() const { return detectorState_; }
+    // Why the model couldn't be loaded; empty unless the state is Failed.
+    QString detectorError() const { return detectorError_; }
+
     // The newest frame; empty before the first one and after a switch or failure.
     // Readers share it (QImage is implicitly shared), so any number of views can.
     std::optional<DisplayFrame> latestFrame() const { return latest_; }
@@ -76,26 +99,44 @@ signals:
     void cleared();
     void sourceNameChanged();
     void errorStringChanged();
+    void detectionAvailable();
+    void detectorStateChanged();
 
 private:
     void onProcessedFrame();
+    void onDetectionResult();
+    void onDetectorState(DetectorState state, const QString &error);
+    // Tells the processing thread what to hand the detector.
+    void updateDetectionFeed();
+    void clearDetection();
     void onOpened(const QString &name);
     void onFailed(const QString &message);
     void setSourceName(const QString &name);
     void setErrorString(const QString &message);
     // Runs `task` on the processing thread (or right away if it isn't running).
     void onProcessingThread(std::function<void(FrameProcessor &)> task);
+    // The same for the detection thread.
+    void onDetectionThread(std::function<void(DetectionWorker &)> task);
 
     // Order matters: members are destroyed bottom-up, so the threads stop
     // before the workers go, and the workers before the buffers they use.
     std::unique_ptr<LatestBuffer<RawFrame>> rawBuffer_;
     LatestFrameBuffer displayBuffer_;
+    std::unique_ptr<LatestBuffer<DetectionJob>> detectionJobs_;
+    std::unique_ptr<LatestBuffer<DetectionResult>> detectionResults_;
     std::unique_ptr<FrameProducer> producer_;
     std::unique_ptr<FrameProcessor> processor_;
+    std::unique_ptr<DetectionWorker> detector_;
     QThread captureThread_;
     QThread processingThread_;
+    QThread detectionThread_;
 
     std::optional<DisplayFrame> latest_;
+    std::optional<DetectionResult> latestDetection_;
+    bool detectionEnabled_ = false;
+    DetectionInput detectionInput_ = DetectionInput::Raw;
+    DetectorState detectorState_ = DetectorState::Off;
+    QString detectorError_;
     FrameMetrics metrics_;
     std::uint64_t generation_ = 0;
     QSize processSize_;

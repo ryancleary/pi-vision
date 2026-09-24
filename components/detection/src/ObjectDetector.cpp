@@ -115,6 +115,43 @@ std::vector<Detection> ObjectDetector::decode(const std::vector<cv::Mat> &output
     return candidates;
 }
 
+std::vector<Detection> ObjectDetector::suppressDuplicates(const std::vector<Detection> &candidates) const
+{
+    std::vector<cv::Rect> boxes;
+    std::vector<float> scores;
+    std::vector<int> classIds;
+    for (const Detection &candidate : candidates) {
+        boxes.push_back(candidate.box);
+        scores.push_back(candidate.score);
+        classIds.push_back(candidate.classId);
+    }
+
+    // OpenCV's NMS, run separately per class ("batched"), as NanoDet's own
+    // post-processing does (batched_nms, not class-agnostic), so a person
+    // holding a ball keeps both boxes:
+    //     https://github.com/RangiLyu/nanodet/blob/be9b4a9001d7f9b6fc89c2df31ae8d428e35b4f0/nanodet/model/module/nms.py#L68-L103
+    //     https://docs.opencv.org/4.9.0/d6/d0f/group__dnn.html (NMSBoxesBatched)
+    // Overlap is measured as intersection over union (IoU): the shared area
+    // divided by the combined area, 0 (apart) to 1 (identical). Candidates
+    // already passed scoreThreshold in decode().
+    std::vector<int> kept;
+    cv::dnn::NMSBoxesBatched(boxes, scores, classIds, config_.scoreThreshold, config_.nmsThreshold, kept);
+
+    std::vector<Detection> detections;
+    for (const int index : kept)
+        detections.push_back(candidates.at(static_cast<size_t>(index)));
+    return detections;
+}
+
+std::vector<Detection> ObjectDetector::detect(const cv::Mat &bgr) const
+{
+    std::vector<Detection> detections = suppressDuplicates(decode(run(makeInputBlob(bgr))));
+    const cv::Rect frameArea(cv::Point(0, 0), bgr.size());
+    for (Detection &detection : detections)
+        detection.box = toImageRect(detection.box, bgr.size()) & frameArea; // & keeps it inside the frame
+    return detections;
+}
+
 cv::Rect ObjectDetector::toImageRect(const cv::Rect &inputRect, const cv::Size &imageSize) const
 {
     // Image2BlobParams knows how it resized, so it can undo it:

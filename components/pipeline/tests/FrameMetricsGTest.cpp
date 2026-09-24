@@ -89,4 +89,39 @@ TEST_F(FrameMetricsTest, GivenFrames_WhenCleared_ThenTheSnapshotIsEmpty)
     EXPECT_EQ(metrics.snapshot(start + std::chrono::milliseconds(50)).displayFps, 0.0);
 }
 
+TEST_F(FrameMetricsTest, GivenDetectionResults_WhenTakingASnapshot_ThenTimeRateAndAgeAreReported)
+{
+    FrameMetrics metrics;
+    const FrameMetrics::Clock::time_point start = FrameMetrics::Clock::now();
+    // Three results 500 ms apart (2 per second), each taking 400 ms and
+    // arriving 450 ms after its frame was captured.
+    constexpr int kResults = 3;
+    constexpr int kIntervalMs = 500;
+    constexpr double kDetectionMs = 400.0;
+    constexpr int kDelayMs = 450;
+    for (int i = 0; i < kResults; ++i) {
+        const auto arrived = start + std::chrono::milliseconds(kIntervalMs * i);
+        DetectionResult result;
+        result.milliseconds = kDetectionMs;
+        result.captured = arrived - std::chrono::milliseconds(kDelayMs);
+        metrics.addDetection(result, arrived);
+    }
+
+    // Looked at the moment the last one arrived.
+    const auto lastArrival = start + std::chrono::milliseconds(kIntervalMs * (kResults - 1));
+    const MetricsSnapshot snapshot = metrics.snapshot(lastArrival);
+    EXPECT_DOUBLE_EQ(snapshot.detectionMs, kDetectionMs);
+    EXPECT_DOUBLE_EQ(snapshot.detectionsPerSecond, 1000.0 / kIntervalMs);
+    EXPECT_DOUBLE_EQ(snapshot.detectionAgeMs, kDelayMs);
+}
+
+TEST_F(FrameMetricsTest, GivenDetectionResults_WhenDetectionsAreCleared_ThenTheyAreZero)
+{
+    FrameMetrics metrics;
+    const FrameMetrics::Clock::time_point now = FrameMetrics::Clock::now();
+    metrics.addDetection(DetectionResult {}, now);
+    metrics.clearDetections();
+    EXPECT_EQ(metrics.snapshot(now).detectionMs, 0.0);
+}
+
 } // namespace pivision::pipeline

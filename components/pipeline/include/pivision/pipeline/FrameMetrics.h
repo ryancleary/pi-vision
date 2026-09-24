@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include <pivision/pipeline/DetectionResult.h>
 #include <pivision/pipeline/LatestFrameBuffer.h>
 #include <pivision/processing/StageChain.h>
 
@@ -29,6 +30,12 @@ struct MetricsSnapshot {
     std::vector<processing::StageTiming> stages;
     double droppedBeforeProcessingPerSecond = 0.0;
     double droppedBeforeDisplayPerSecond = 0.0;
+
+    // Detection, averaged over a longer window (detections are slow, so one
+    // second may hold only one or two). All zero while detection is off.
+    double detectionMs = 0.0;          // time per detection
+    double detectionsPerSecond = 0.0;  // how often results arrive
+    double detectionAgeMs = 0.0;       // how old the newest result's frame is now
 };
 
 // Rolling statistics over the frames that reached the GUI in the last
@@ -37,16 +44,30 @@ class FrameMetrics {
 public:
     using Clock = std::chrono::steady_clock;
 
-    explicit FrameMetrics(Clock::duration window = std::chrono::seconds(1))
+    // Detection statistics use a longer window than frames; see MetricsSnapshot.
+    static constexpr std::chrono::seconds kDetectionWindow { 5 };
+
+    explicit FrameMetrics(Clock::duration window = std::chrono::seconds(1),
+        Clock::duration detectionWindow = kDetectionWindow)
         : window_(window)
+        , detectionWindow_(detectionWindow)
     {
     }
 
     // Records `frame`, which reached the GUI at `shown`, with the drop totals at that time.
     void add(const DisplayFrame &frame, Clock::time_point shown, const DropCounts &drops);
 
+    // Records a detection result that arrived at `arrived`.
+    void addDetection(const DetectionResult &result, Clock::time_point arrived);
+
     // Forget everything, e.g. when the source changes.
-    void clear() { samples_.clear(); }
+    void clear()
+    {
+        samples_.clear();
+        detections_.clear();
+    }
+    // Forget detections only, e.g. when detection is switched off.
+    void clearDetections() { detections_.clear(); }
 
     MetricsSnapshot snapshot(Clock::time_point now) const;
 
@@ -59,8 +80,18 @@ private:
         DropCounts drops;
     };
 
+    void fillDetectionStatistics(MetricsSnapshot &result, Clock::time_point now) const;
+
+    struct DetectionSample {
+        Clock::time_point arrived;
+        Clock::time_point captured;
+        double milliseconds = 0.0;
+    };
+
     Clock::duration window_;
+    Clock::duration detectionWindow_;
     std::deque<Sample> samples_; // oldest first
+    std::deque<DetectionSample> detections_; // oldest first
 };
 
 } // namespace pivision::pipeline
