@@ -88,6 +88,26 @@ ScrollView {
         Metric { name: qsTr("Before processing"); value: panel.perSecond(MetricsMonitor.droppedBeforeProcessing) }
         Metric { name: qsTr("Before display"); value: panel.perSecond(MetricsMonitor.droppedBeforeDisplay) }
 
+        Heading {
+            visible: MetricsMonitor.detecting
+            text: qsTr("Detection")
+        }
+        Metric {
+            visible: MetricsMonitor.detecting
+            name: qsTr("Time per detection")
+            value: panel.ms(MetricsMonitor.detectionMs)
+        }
+        Metric {
+            visible: MetricsMonitor.detecting
+            name: qsTr("Detections")
+            value: panel.perSecond(MetricsMonitor.detectionsPerSecond)
+        }
+        Metric {
+            visible: MetricsMonitor.detecting
+            name: qsTr("Box age")
+            value: panel.ms(MetricsMonitor.detectionAgeMs)
+        }
+
         Heading { text: qsTr("System") }
         Metric {
             name: qsTr("CPU (100% = one core)")

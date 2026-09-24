@@ -26,6 +26,8 @@ void FrameView::setPipeline(pipeline::Pipeline *pipeline)
     if (pipeline_) {
         connections_ = {
             connect(pipeline_.data(), &pipeline::Pipeline::frameAvailable, this, &FrameView::onFrameAvailable),
+            connect(pipeline_.data(), &pipeline::Pipeline::detectionAvailable, this,
+                &FrameView::onDetectionAvailable),
             // A source switch or failure cuts the feed: show nothing rather than a frozen frame.
             connect(pipeline_.data(), &pipeline::Pipeline::cleared, this, &FrameView::clearFrame),
             connect(pipeline_.data(), &pipeline::Pipeline::failed, this, &FrameView::clearFrame),
@@ -37,15 +39,45 @@ void FrameView::setPipeline(pipeline::Pipeline *pipeline)
 
 void FrameView::onFrameAvailable()
 {
-    if (!pipeline_)
+    if (!pipeline_ || stream_ == Detected)
         return;
+    if (auto frame = pipeline_->latestFrame())
+        showImage(stream_ == Raw ? frame->raw : frame->processed);
+}
 
-    if (auto frame = pipeline_->latestFrame()) {
-        // Shared, not copied: QImage is implicitly shared.
-        frame_ = stream_ == Raw ? frame->raw : frame->processed;
-        frameDirty_ = true;
-        update(); // schedules updatePaintNode() on the render thread
+void FrameView::onDetectionAvailable()
+{
+    if (!pipeline_ || stream_ != Detected)
+        return;
+    if (auto result = pipeline_->latestDetection())
+        showImage(result->image);
+    else
+        clearFrame(); // detection switched off or reset
+}
+
+void FrameView::showImage(const QImage &image)
+{
+    // Shared, not copied: QImage is implicitly shared.
+    frame_ = image;
+    frameDirty_ = true;
+    updateImageRect();
+    update(); // schedules updatePaintNode() on the render thread
+}
+
+void FrameView::updateImageRect()
+{
+    // Show the whole frame as large as the item allows, centered, with bars
+    // on the sides that don't fill ("letterboxing"). QSizeF::scaled with
+    // Qt::KeepAspectRatio computes the size; moveCenter does the centering.
+    QRectF fitted;
+    if (!frame_.isNull()) {
+        fitted = QRectF(QPointF(), QSizeF(frame_.size()).scaled(size(), Qt::KeepAspectRatio));
+        fitted.moveCenter(boundingRect().center());
     }
+    if (fitted == imageRect_)
+        return;
+    imageRect_ = fitted;
+    emit imageRectChanged();
 }
 
 void FrameView::setStream(Stream stream)
@@ -53,7 +85,11 @@ void FrameView::setStream(Stream stream)
     if (stream == stream_)
         return;
     stream_ = stream;
-    onFrameAvailable(); // show the other image of the current frame right away
+    // Show the other image right away rather than at the next frame.
+    if (stream_ == Detected)
+        onDetectionAvailable();
+    else
+        onFrameAvailable();
     emit streamChanged();
 }
 
@@ -61,6 +97,7 @@ void FrameView::clearFrame()
 {
     frame_ = QImage();
     frameDirty_ = true;
+    updateImageRect();
     update();
 }
 
@@ -87,13 +124,7 @@ QSGNode *FrameView::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
         frameDirty_ = false;
     }
 
-    // Show the whole frame as large as the item allows, centered, with bars
-    // on the sides that don't fill ("letterboxing"). QSizeF::scaled with
-    // Qt::KeepAspectRatio computes the size; moveCenter does the centering.
-    const QSizeF fitted = QSizeF(frame_.size()).scaled(size(), Qt::KeepAspectRatio);
-    QRectF target(QPointF(), fitted);
-    target.moveCenter(boundingRect().center());
-    node->setRect(target);
+    node->setRect(imageRect_); // see updateImageRect()
 
     return node;
 }

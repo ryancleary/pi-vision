@@ -129,6 +129,13 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
+            // Detection runs only while Detection mode is shown.
+            Binding {
+                target: Detection
+                property: "enabled"
+                value: compareView.mode === CompareView.ViewMode.Detection
+            }
+
             CompareView {
                 id: compareView
 
@@ -195,7 +202,7 @@ ApplicationWindow {
             // Shown when the source fails; the feed is cut, so this is all that's visible.
             Label {
                 anchors.centerIn: parent
-                width: parent.width * 0.8
+                width: parent.width * Theme.messageWidthFraction
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 visible: Pipeline.errorString !== ""

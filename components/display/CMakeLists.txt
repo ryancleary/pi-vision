@@ -8,6 +8,7 @@ qt_add_qml_module(pivision_display
         include/pivision/display/Registration.h
         include/pivision/display/UiConfig.h
         private/CaptureControl.h
+        private/DetectionControl.h
         private/FrameView.h
         private/MetricsMonitor.h
         private/PipelineForeign.h
@@ -17,6 +18,7 @@ qt_add_qml_module(pivision_display
         private/UsbControl.h
         private/Utils.h
         src/CaptureControl.cpp
+        src/DetectionControl.cpp
         src/FrameView.cpp
         src/MetricsMonitor.cpp
         src/ProcessingControl.cpp

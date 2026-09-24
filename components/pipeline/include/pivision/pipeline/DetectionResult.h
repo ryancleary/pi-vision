@@ -3,10 +3,13 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <vector>
 
 #include <QImage>
 #include <QMetaType>
+#include <QSize>
 
 #include <pivision/detection/Detection.h>
 
@@ -34,6 +37,10 @@ struct DetectionResult {
     std::uint64_t frameIndex = 0;                 // which capture it came from
     std::chrono::steady_clock::time_point captured; // when that capture happened
     double milliseconds = 0.0;                    // how long detect() took
+    QSize modelInputSize;                         // the model's input (e.g. 416x416)
+    // The model's class names; Detection::classId indexes them. Shared, not
+    // copied, between results.
+    std::shared_ptr<const std::vector<std::string>> classNames;
     std::uint64_t generation = 0;                 // see DisplayFrame
 };
 

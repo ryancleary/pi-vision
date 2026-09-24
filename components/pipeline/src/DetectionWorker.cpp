@@ -41,6 +41,7 @@ bool DetectionWorker::loadModel()
         emit stateChanged(DetectorState::Failed, QString::fromStdString(error));
         return false;
     }
+    classNames_ = std::make_shared<const std::vector<std::string>>(detector_->config().classes);
     qCInfo(logging::lcPipeline, "Loaded detection model %s", detector_->config().name.c_str());
     emit stateChanged(DetectorState::Ready, {});
     return true;
@@ -62,6 +63,9 @@ void DetectionWorker::detectLatest()
     result.frameIndex = job->frameIndex;
     result.captured = job->captured;
     result.generation = job->generation;
+    const cv::Size inputSize = detector_->config().inputSize;
+    result.modelInputSize = QSize(inputSize.width, inputSize.height);
+    result.classNames = classNames_;
 
     if (output_.put(std::move(result)))
         emit resultAvailable();

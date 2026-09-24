@@ -1,4 +1,4 @@
 {
-  "modeButtons": ["sideBySide", "overlay", "pictureInPicture"],
+  "modeButtons": ["sideBySide", "overlay", "pictureInPicture", "detection"],
   "defaultMode": "overlay"
 }

@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
     pivision::display::exposeSourceSelector(&pipeline, camera, pattern);
     pivision::display::exposeProcessingControl(&pipeline, *stages);
     pivision::display::exposeMetricsMonitor(&pipeline, *stages);
+    pivision::display::exposeDetection(&pipeline);
     pivision::display::exposeCaptures(&pipeline, parser.value(captureDirOption), captureKeep,
         QStringLiteral(PIVISION_VERSION));
     pivision::display::exposeUsb(parser.value(usbRootOption), parser.value(captureDirOption),

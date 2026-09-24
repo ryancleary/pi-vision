@@ -51,6 +51,11 @@ void exposeUsb(const QString &mountRoot, const QString &captureDirectory,
 // `UiConfig`. Call before loading any QML; owned by `parent`.
 void exposeUiConfig(const UiConfig &config, QObject *parent);
 
+// Makes Detection mode's backend available to QML as the singleton
+// `Detection`, controlling `pipeline`'s detector. Call before loading any QML;
+// owned by `pipeline`.
+void exposeDetection(pivision::pipeline::Pipeline *pipeline);
+
 // Makes the metrics panel's backend available to QML as the singleton
 // `MetricsMonitor`, reading `pipeline` and naming stages from `stages`.
 // Call before loading any QML; owned by `pipeline`.

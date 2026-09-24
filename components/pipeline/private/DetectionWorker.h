@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <QObject>
 #include <QString>
@@ -40,6 +41,7 @@ private:
     DetectionResultBuffer &output_;
     std::string modelDescription_;
     std::unique_ptr<detection::Detector> detector_;
+    std::shared_ptr<const std::vector<std::string>> classNames_; // from the model's config
     bool loadFailed_ = false; // don't retry a broken model on every frame
 };
 
