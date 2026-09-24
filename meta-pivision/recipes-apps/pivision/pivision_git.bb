@@ -41,3 +41,4 @@ FILES:${PN} += "${datadir}/pivision ${systemd_system_unitdir}/pivision-failed.se
 # The failure screen runs through the qml tool.
 RDEPENDS:${PN} += "qtdeclarative-tools pivision-logging"
 
+RDEPENDS:${PN} += "pivision-model-nanodet"
