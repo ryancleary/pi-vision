@@ -32,4 +32,12 @@ local_conf_header:
   disk-space: |
     # Delete each recipe's work directory once it's built. Cuts disk use sharply.
     INHERIT += "rm_work"
+  parallelism: |
+    # Both default to the core count, so a 4-core host runs up to 4 tasks x 4 compile
+    # jobs at once. OpenCV and Qt compiles can each use 1-2 GB, which exhausted RAM.
+    # Capped at 2 tasks x 3 jobs.
+    # https://docs.yoctoproject.org/scarthgap/ref-manual/variables.html#term-BB_NUMBER_THREADS
+    # https://docs.yoctoproject.org/scarthgap/ref-manual/variables.html#term-PARALLEL_MAKE
+    BB_NUMBER_THREADS = "2"
+    PARALLEL_MAKE = "-j 3"
 
