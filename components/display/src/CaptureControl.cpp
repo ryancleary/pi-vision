@@ -79,7 +79,7 @@ void CaptureControl::take()
 
 QJsonObject CaptureControl::describe(const pipeline::DisplayFrame &frame) const
 {
-    return QJsonObject {
+    QJsonObject info {
         { QStringLiteral("app"),
             QJsonObject {
                 { QStringLiteral("version"), appVersion_ },
@@ -98,6 +98,10 @@ QJsonObject CaptureControl::describe(const pipeline::DisplayFrame &frame) const
             processing_ ? stagesToJson(processing_->stageConfigs()) : QJsonArray() },
         { QStringLiteral("metrics"), metrics_ ? metrics_->toJson() : QJsonObject() },
     };
+    // Only in Detection mode, once the detector has a result for this source.
+    if (const auto detection = pipeline_->latestDetection())
+        info.insert(QStringLiteral("detection"), detectionToJson(*detection));
+    return info;
 }
 
 void CaptureControl::setBusy(bool busy)

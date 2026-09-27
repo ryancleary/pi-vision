@@ -5,6 +5,8 @@
 
 #include <pivision/logging/Logging.h>
 
+#include "Utils.h"
+
 namespace pivision::display {
 
 DetectionControl::DetectionControl(pipeline::Pipeline *pipeline, QObject *parent)
@@ -74,16 +76,12 @@ void DetectionControl::onDetectionAvailable()
         const double width = result->image.width();
         const double height = result->image.height();
         for (const detection::Detection &detection : result->detections) {
-            const auto classIndex = static_cast<size_t>(detection.classId);
-            const QString label = result->classNames && classIndex < result->classNames->size()
-                ? QString::fromStdString(result->classNames->at(classIndex))
-                : QString::number(detection.classId);
             boxes_.append(QVariantMap {
                 { QStringLiteral("x"), detection.box.x / width },
                 { QStringLiteral("y"), detection.box.y / height },
                 { QStringLiteral("width"), detection.box.width / width },
                 { QStringLiteral("height"), detection.box.height / height },
-                { QStringLiteral("label"), label },
+                { QStringLiteral("label"), classLabel(*result, detection.classId) },
                 { QStringLiteral("score"), detection.score },
             });
         }
