@@ -22,6 +22,8 @@ struct CameraConfig {
     int height = 480;
     double fps = 30.0;
     // MJPEG keeps USB bandwidth low; nearly every UVC webcam supports it.
+    // Off: YUYV, uncompressed, so no JPEG decoding (CPU) and none of libjpeg's
+    // "Corrupt JPEG data" warnings that some webcams' frames cause.
     bool mjpeg = true;
 };
 

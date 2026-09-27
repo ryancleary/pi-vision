@@ -3,7 +3,7 @@
 
   scripts/pv targets                          list image targets
   scripts/pv build desktop [--preset NAME]    configure, build and test the desktop app
-  scripts/pv build image TARGET               build the Yocto image for TARGET
+  scripts/pv build image TARGET [--display D] build the Yocto image for TARGET
   scripts/pv build all                        every desktop preset and every image target
   scripts/pv size TARGET                      sizes of the last image built for TARGET
   scripts/pv run TARGET [options]             boot a QEMU target's image (see: run --help)
@@ -13,7 +13,8 @@
   scripts/pv clean WHAT [options]             remove build output (see: clean --help)
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
-which stays the source of truth for the Yocto configuration.
+which stays the source of truth for the Yocto configuration. Screens that
+need their own fixes have a kas file in kas/displays/, added with --display.
 """
 
 import argparse
@@ -32,6 +33,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 TARGETS_DIR = REPO / "targets"
+DISPLAYS_DIR = REPO / "kas" / "displays"
 LOG_ROOT = REPO / "build-logs"
 KAS = REPO / "scripts" / "kas.sh"
 YOCTO_DIR = REPO / "yocto"
@@ -104,8 +106,18 @@ def desktop_commands(preset):
     return commands
 
 
-def image_commands(target):
-    return [[str(KAS), "build", target["kas"]]]
+def known_displays():
+    return sorted(path.stem for path in DISPLAYS_DIR.glob("*.yml"))
+
+
+def image_commands(target, display=None):
+    """kas takes several config files joined with ':'; a display's is added on top of the target's."""
+    config = target["kas"]
+    if display:
+        if display not in known_displays():
+            fail(f"unknown display '{display}'. Known displays: {', '.join(known_displays()) or 'none'}")
+        config += ":" + str((DISPLAYS_DIR / f"{display}.yml").relative_to(REPO))
+    return [[str(KAS), "build", config]]
 
 
 def check_desktop_environment():
@@ -621,6 +633,9 @@ def main():
     build.add_argument("target", nargs="?", help="image target (for 'build image')")
     build.add_argument("--preset", default="debug", choices=DESKTOP_PRESETS,
                        help="CMake preset for 'build desktop' (default: debug)")
+    build.add_argument("--display", metavar="NAME",
+                       help="for 'build image': add a screen's fixes from kas/displays/NAME.yml "
+                            "(see: scripts/pv targets)")
 
     size = commands.add_parser("size", help="show image sizes for a target")
     size.add_argument("target")
@@ -683,6 +698,9 @@ def main():
     if args.command == "targets":
         for name, target in load_targets().items():
             print(f"{name:<14} {target['description']}  [{target['kas']}, delivered by {target['delivery']}]")
+        displays = known_displays()
+        if displays:
+            print(f"\nDisplays (build image TARGET --display NAME): {', '.join(displays)}")
         return 0
 
     if args.command == "size":
@@ -709,7 +727,7 @@ def main():
     if args.what == "image":
         if not args.target:
             fail("build image needs a target; see: scripts/pv targets")
-        return 0 if run_step(image_commands(get_target(args.target))) else 1
+        return 0 if run_step(image_commands(get_target(args.target), args.display)) else 1
     return build_all()
 
 

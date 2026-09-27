@@ -21,6 +21,8 @@ class UiSettings : public QObject {
     QML_SINGLETON
     Q_PROPERTY(QStringList modeButtons READ modeButtons CONSTANT)
     Q_PROPERTY(QString defaultMode READ defaultMode CONSTANT)
+    Q_PROPERTY(bool toolbarAtBottom READ toolbarAtBottom CONSTANT)
+    Q_PROPERTY(int topInset READ topInset CONSTANT)
 
 public:
     explicit UiSettings(UiConfig config, QObject *parent = nullptr);
@@ -30,6 +32,8 @@ public:
 
     QStringList modeButtons() const { return config_.modeButtons; }
     QString defaultMode() const { return config_.defaultMode; }
+    bool toolbarAtBottom() const { return config_.toolbar == ToolbarPosition::Bottom; }
+    int topInset() const { return config_.topInset; }
 
 private:
     UiConfig config_;

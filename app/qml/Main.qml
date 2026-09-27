@@ -28,7 +28,35 @@ ApplicationWindow {
     palette.light: Theme.control
     palette.placeholderText: Theme.muted
 
-    header: ToolBar {
+    // Top: the status line (only when ui.json reserves a top inset) and the
+    // toolbar if it sits at the top. Bottom: the toolbar if it sits there.
+    header: Column {
+        StatusLine {
+            width: parent.width
+            height: UiConfig.topInset
+            visible: UiConfig.topInset > 0
+        }
+
+        Item {
+            id: topToolbarSlot
+
+            width: parent.width
+            height: UiConfig.toolbarAtBottom ? 0 : toolbar.implicitHeight
+        }
+    }
+
+    footer: Item {
+        id: bottomToolbarSlot
+
+        height: UiConfig.toolbarAtBottom ? toolbar.implicitHeight : 0
+    }
+
+    ToolBar {
+        id: toolbar
+
+        // Lives in whichever slot ui.json picks ("toolbar": "top" or "bottom").
+        parent: UiConfig.toolbarAtBottom ? bottomToolbarSlot : topToolbarSlot
+        width: parent.width
         background: Rectangle { color: Theme.panel }
 
         RowLayout {
@@ -42,10 +70,14 @@ ApplicationWindow {
                 color: Theme.muted
             }
 
+            // The source box and the opacity slider give up width first when
+            // the toolbar is tight (1024 px screens); the buttons keep theirs.
             ComboBox {
                 id: sourceBox
 
-                Layout.preferredWidth: Theme.sourceBoxWidth
+                Layout.fillWidth: true
+                Layout.minimumWidth: Theme.sourceBoxMinWidth
+                Layout.maximumWidth: Theme.sourceBoxWidth
                 textRole: "label"
                 // Cameras and the test pattern, then "Other..." for anything typed in.
                 model: SourceSelector.sources.concat([{ label: qsTr("Other…"), spec: "" }])
@@ -67,7 +99,7 @@ ApplicationWindow {
                 }
             }
 
-            Item { Layout.fillWidth: true }
+            Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
 
             // How strongly the processed image covers the raw one in overlay mode.
             Label {
@@ -79,7 +111,9 @@ ApplicationWindow {
             Slider {
                 id: overlayMix
 
-                Layout.preferredWidth: Theme.sliderWidth
+                Layout.fillWidth: true
+                Layout.minimumWidth: Theme.sliderMinWidth
+                Layout.maximumWidth: Theme.sliderWidth
                 visible: compareView.mode === CompareView.ViewMode.Overlay
                 from: 0
                 to: 1

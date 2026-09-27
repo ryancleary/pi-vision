@@ -1,6 +1,8 @@
 #ifndef PIVISION_DISPLAY_UTILS_H
 #define PIVISION_DISPLAY_UTILS_H
 
+#include <optional>
+
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
@@ -8,6 +10,7 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <pivision/display/UiConfig.h>
 #include <pivision/pipeline/DetectionResult.h>
 #include <pivision/pipeline/StageConfig.h>
 
@@ -26,6 +29,17 @@ QString classLabel(const pipeline::DetectionResult &result, int classId);
 // The detector's newest result, for capture info.json: which image it looked
 // at, which frame that was, and each box in that image's pixels.
 QJsonObject detectionToJson(const pipeline::DetectionResult &result);
+
+// The top-level object of a JSON document; nothing, and `error` set, if the
+// text isn't valid JSON.
+std::optional<QJsonObject> jsonObject(const QByteArray &json, QString *error);
+
+// Reads ui.json keys from `root` into `config`, keeping its values for keys
+// that are absent. With `modesRequired`, modeButtons and defaultMode must be
+// present (the built-in file); without, everything is optional (overrides).
+// Checks the result either way.
+std::optional<UiConfig> readUiConfig(const QJsonObject &root, UiConfig config, bool modesRequired,
+    QString *error);
 
 // One entry of the source dropdown: { label, spec }.
 QVariantMap sourceEntry(const QString &label, const QString &spec);

@@ -5,8 +5,11 @@ Description=pi-vision failure screen
 User=pivision
 Environment=QT_QPA_PLATFORM=eglfs
 Environment=QT_QPA_EGLFS_INTEGRATION=eglfs_kms
+Environment=QT_QPA_EGLFS_HIDECURSOR=1
+Environment=LANG=C.UTF-8
 Environment=QML_XHR_ALLOW_FILE_READ=1
 # Save the app's last log lines where the screen can read them.
-ExecStartPre=+/bin/sh -c 'journalctl -u pivision.service -n 15 --no-pager -o cat > /run/pivision-failed.log; chmod 644 /run/pivision-failed.log'
+# Repeated webcam JPEG warnings are left out so they can't push the real error off.
+ExecStartPre=+/bin/sh -c 'journalctl -u pivision.service -n 300 --no-pager -o cat | grep -v "Corrupt JPEG" | tail -n 15 > /run/pivision-failed.log; chmod 644 /run/pivision-failed.log'
 ExecStart=/usr/bin/qml /usr/share/pivision/failed.qml
 ExecStopPost=+/usr/libexec/pivision/crash-dump %n

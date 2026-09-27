@@ -27,6 +27,7 @@ QtObject {
     readonly property int tabIndicatorHeight: 2
     readonly property int metricSpacing: 4
     readonly property int sourceBoxWidth: 340
+    readonly property int sourceBoxMinWidth: 120 // narrowest it gets on a tight toolbar
     readonly property int radius: 5
     readonly property int borderWidth: 1
 
@@ -40,6 +41,7 @@ QtObject {
     readonly property real pipScale: 0.28 // inset size as a fraction of the view
     readonly property int pipInset: 12    // inset distance from the view's edges
     readonly property int sliderWidth: 140
+    readonly property int sliderMinWidth: 80
     readonly property int captionPadding: 4
     readonly property real captionOpacity: 0.7
     readonly property int transitionMs: 225

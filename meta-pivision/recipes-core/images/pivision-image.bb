@@ -20,8 +20,13 @@ PIVISION_KERNEL_MODULES ?= ""
 # Everything else this device uses (VC4, Ethernet, USB HID) is built into the kernel.
 PIVISION_KERNEL_MODULES:raspberrypi3-64 = "kernel-module-uvcvideo kernel-module-hid-multitouch"
 
+# Screen-specific fixes (touch rules, layout overrides), from a display file:
+#   scripts/pv build image rpi3 --display geekpi-ep0084  (kas/displays/*.yml)
+PIVISION_DISPLAY_PACKAGES ?= ""
+
 IMAGE_INSTALL += " \
     pivision \
+    ${PIVISION_DISPLAY_PACKAGES} \
     ${PIVISION_KERNEL_MODULES} \
     mesa-megadriver \
     qtbase \

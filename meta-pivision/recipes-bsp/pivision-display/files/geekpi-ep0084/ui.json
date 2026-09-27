@@ -1,0 +1,5 @@
+{
+  "about": "GeekPi/52Pi EP-0084 (7 inch, 1024x600). Its touch controller senses nothing above y = 57 px (measured with a slow drag from the top edge), so the top 60 px hold only a status line and the toolbar moves to the bottom.",
+  "toolbar": "bottom",
+  "topInset": 60
+}

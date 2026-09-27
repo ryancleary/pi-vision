@@ -1,5 +1,8 @@
 #include "Utils.h"
 
+#include <QJsonDocument>
+#include <QJsonParseError>
+
 
 namespace pivision::display {
 
@@ -59,6 +62,73 @@ QJsonObject detectionToJson(const pipeline::DetectionResult &result)
         { QStringLiteral("ms"), result.milliseconds },
         { QStringLiteral("detections"), boxes },
     };
+}
+
+std::optional<QJsonObject> jsonObject(const QByteArray &json, QString *error)
+{
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(json, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        if (error)
+            *error = QStringLiteral("%1 at offset %2").arg(parseError.errorString()).arg(parseError.offset);
+        return std::nullopt;
+    }
+    return document.object();
+}
+
+std::optional<UiConfig> readUiConfig(const QJsonObject &root, UiConfig config, bool modesRequired,
+    QString *error)
+{
+    const auto fail = [error](const QString &message) -> std::optional<UiConfig> {
+        if (error)
+            *error = message;
+        return std::nullopt;
+    };
+
+    const QString buttonsKey = QStringLiteral("modeButtons");
+    if (modesRequired || root.contains(buttonsKey)) {
+        const QJsonArray buttons = root.value(buttonsKey).toArray();
+        if (buttons.isEmpty())
+            return fail(QStringLiteral("modeButtons needs at least one mode"));
+        config.modeButtons.clear();
+        for (const QJsonValue &button : buttons) {
+            const QString mode = button.toString();
+            if (!knownViewModes().contains(mode))
+                return fail(QStringLiteral("modeButtons: unknown mode \"%1\"").arg(mode));
+            if (config.modeButtons.contains(mode))
+                return fail(QStringLiteral("modeButtons: \"%1\" listed twice").arg(mode));
+            config.modeButtons.append(mode);
+        }
+    }
+
+    const QString defaultKey = QStringLiteral("defaultMode");
+    if (modesRequired || root.contains(defaultKey))
+        config.defaultMode = root.value(defaultKey).toString();
+    if (!config.modeButtons.contains(config.defaultMode))
+        return fail(QStringLiteral("defaultMode must be one of modeButtons"));
+
+    const QString toolbarKey = QStringLiteral("toolbar");
+    if (root.contains(toolbarKey)) {
+        const QString toolbar = root.value(toolbarKey).toString();
+        if (toolbar == QStringLiteral("top"))
+            config.toolbar = ToolbarPosition::Top;
+        else if (toolbar == QStringLiteral("bottom"))
+            config.toolbar = ToolbarPosition::Bottom;
+        else
+            return fail(QStringLiteral("toolbar must be \"top\" or \"bottom\""));
+    }
+
+    const QString insetKey = QStringLiteral("topInset");
+    if (root.contains(insetKey)) {
+        const QJsonValue inset = root.value(insetKey);
+        // toInt() returns the fallback for anything that isn't a whole number.
+        const int notAWholeNumber = -1;
+        config.topInset = inset.toInt(notAWholeNumber);
+        if (!inset.isDouble() || config.topInset < 0)
+            return fail(QStringLiteral("topInset must be a whole number of pixels, 0 or more"));
+    }
+
+    return config;
 }
 
 QVariantMap sourceEntry(const QString &label, const QString &spec)

@@ -19,12 +19,15 @@ int usageError(const QString &message);
 //   rule mounts them.
 // Models: the repo's assets/models in development builds; the image installs
 // them in /usr/share/pivision/models.
+// Layout overrides: none in development builds; on the device, a display
+// profile may install /etc/pivision/ui.json (used if it exists).
 struct StorageDefaults {
     QString captureDirectory;
     int captureKeep;
     QString crashDirectory;
     QString usbRoot;
     QString modelDirectory;
+    QString uiOverrides;
 };
 
 // The detection model used unless --model names another description file.

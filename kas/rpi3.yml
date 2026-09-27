@@ -16,4 +16,11 @@ local_conf_header:
     DISABLE_SPLASH = "1"
     CMDLINE:append = " quiet loglevel=3 vt.global_cursor_default=0"
     WKS_FILE = "pivision-rpi3.wks"
+  hdmi: |
+    # Keep HDMI on even when no screen answers at boot (a screen switched on
+    # after the Pi, or one behind an adapter); without it the firmware turns
+    # HDMI off and the app has no display. Appended to config.txt by
+    # meta-raspberrypi's rpi-config.
+    # https://www.raspberrypi.com/documentation/computers/legacy_config_txt.html#hdmi_force_hotplug
+    RPI_EXTRA_CONFIG = " \n hdmi_force_hotplug=1"
 

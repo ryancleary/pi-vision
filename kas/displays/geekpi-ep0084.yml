@@ -1,0 +1,8 @@
+# GeekPi/52Pi EP-0084 7 inch HDMI touch screen. Added on top of a Pi target:
+#   scripts/pv build image rpi3 --display geekpi-ep0084
+header:
+  version: 14
+
+local_conf_header:
+  display: |
+    PIVISION_DISPLAY_PACKAGES = "pivision-display-geekpi-ep0084"

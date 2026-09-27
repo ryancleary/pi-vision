@@ -20,9 +20,10 @@ StorageDefaults storageDefaults()
     if (!devCaptures.isEmpty())
         return { devCaptures, 0, QString(),
             QStringLiteral("/run/media/%1").arg(qEnvironmentVariable("USER")),
-            QStringLiteral(PIVISION_DEV_MODEL_DIR) };
+            QStringLiteral(PIVISION_DEV_MODEL_DIR), QString() };
     return { QStringLiteral("/var/crash/captures"), 10, QStringLiteral("/var/crash"),
-        QStringLiteral("/run/media"), QStringLiteral("/usr/share/pivision/models") };
+        QStringLiteral("/run/media"), QStringLiteral("/usr/share/pivision/models"),
+        QStringLiteral("/etc/pivision/ui.json") };
 }
 
 std::optional<QSize> parseSize(const QString &text)

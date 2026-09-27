@@ -20,8 +20,8 @@ bool CameraSource::open()
         return false;
 
     // Format first, then size: the driver picks a size from the format's modes.
-    if (config_.mjpeg)
-        capture_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    capture_.set(cv::CAP_PROP_FOURCC, config_.mjpeg ? cv::VideoWriter::fourcc('M', 'J', 'P', 'G')
+                                                    : cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
     capture_.set(cv::CAP_PROP_FRAME_WIDTH, config_.width);
     capture_.set(cv::CAP_PROP_FRAME_HEIGHT, config_.height);
     capture_.set(cv::CAP_PROP_FPS, config_.fps);

@@ -18,6 +18,7 @@
 #include <pivision/pipeline/Pipeline.h>
 #include <pivision/pipeline/StageConfig.h>
 
+#include "TerminationHandler.h"
 #include "Utils.h"
 
 // PiVision.Display is a static QML module, so its plugin must be imported explicitly.
@@ -69,10 +70,21 @@ int main(int argc, char *argv[])
                        "(default %1).")
             .arg(defaultModel),
         QStringLiteral("file"), defaultModel);
+    const QCommandLineOption uiConfigOption(QStringLiteral("ui-config"),
+        QStringLiteral("Layout overrides <file>, applied over the built-in ui.json%1.")
+            .arg(storage.uiOverrides.isEmpty()
+                    ? QString()
+                    : QStringLiteral(" (default %1, if it exists)").arg(storage.uiOverrides)),
+        QStringLiteral("file"), storage.uiOverrides);
+    const QCommandLineOption cameraFormatOption(QStringLiteral("camera-format"),
+        QStringLiteral("Camera pixel format to request: mjpeg (less USB bandwidth) or yuyv "
+                       "(no JPEG decoding; default mjpeg)."),
+        QStringLiteral("format"), QStringLiteral("mjpeg"));
     const QCommandLineOption verboseOption(QStringLiteral("verbose"),
         QStringLiteral("Include debug messages in the log."));
     parser.addOptions({ cameraOption, patternOption, sizeOption, processSizeOption, logFileOption,
-        captureDirOption, captureKeepOption, usbRootOption, modelOption, verboseOption });
+        captureDirOption, captureKeepOption, usbRootOption, modelOption, uiConfigOption,
+        cameraFormatOption, verboseOption });
     parser.addPositionalArgument(QStringLiteral("source"),
         QStringLiteral("Video file, stream URL or /dev/video* device."), QStringLiteral("[source]"));
     parser.process(app);
@@ -112,7 +124,7 @@ int main(int argc, char *argv[])
     // Layout settings (toolbar mode buttons, starting mode), likewise built in.
     QFile uiFile(QStringLiteral(":/pivision/config/ui.json"));
     QString uiError;
-    const auto ui = uiFile.open(QIODevice::ReadOnly)
+    auto ui = uiFile.open(QIODevice::ReadOnly)
         ? pivision::display::parseUiConfig(uiFile.readAll(), &uiError)
         : std::nullopt;
     if (!ui) {
@@ -120,9 +132,30 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    // A screen's own layout needs (a display profile on the device, or
+    // --ui-config). The default file is optional; one named explicitly isn't.
+    const QString uiOverridePath = parser.value(uiConfigOption);
+    QFile uiOverrideFile(uiOverridePath);
+    if (!uiOverridePath.isEmpty() && (uiOverrideFile.exists() || parser.isSet(uiConfigOption))) {
+        ui = uiOverrideFile.open(QIODevice::ReadOnly)
+            ? pivision::display::applyUiOverrides(*ui, uiOverrideFile.readAll(), &uiError)
+            : std::nullopt;
+        if (!ui) {
+            qCCritical(pivision::logging::lcApp) << "Invalid" << uiOverridePath << ":"
+                                                 << (uiError.isEmpty() ? uiOverrideFile.errorString() : uiError);
+            return EXIT_FAILURE;
+        }
+        qCInfo(pivision::logging::lcApp) << "Layout overrides from" << uiOverridePath;
+    }
+
+    const QString cameraFormat = parser.value(cameraFormatOption);
+    if (cameraFormat != QStringLiteral("mjpeg") && cameraFormat != QStringLiteral("yuyv"))
+        return pivision::app::usageError(QStringLiteral("--camera-format must be mjpeg or yuyv"));
+
     pivision::capture::CameraConfig camera;
     camera.width = size->width();
     camera.height = size->height();
+    camera.mjpeg = cameraFormat == QStringLiteral("mjpeg");
     pivision::capture::TestPatternConfig pattern;
     pattern.width = size->width();
     pattern.height = size->height();
@@ -174,6 +207,8 @@ int main(int argc, char *argv[])
         [] { QCoreApplication::exit(EXIT_FAILURE); }, Qt::QueuedConnection);
     engine.loadFromModule("PiVision", "Main");
 
+    // systemctl stop sends SIGTERM; quit normally so it isn't counted as a crash.
+    pivision::app::TerminationHandler termination;
     pipeline.start();
     return app.exec();
 }

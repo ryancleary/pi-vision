@@ -1,8 +1,9 @@
 [Unit]
 Description=pi-vision
 After=systemd-user-sessions.service
-# Take over the display from the login prompt.
-Conflicts=getty@tty1.service
+# Take over the display from the login prompt, and from the failure screen
+# when started again (only one program can drive the display).
+Conflicts=getty@tty1.service pivision-failed.service
 # After 3 failed starts in 60 s, give up and show the failure screen.
 StartLimitIntervalSec=60
 StartLimitBurst=3
@@ -14,6 +15,12 @@ RuntimeDirectory=pivision
 Environment=XDG_RUNTIME_DIR=/run/pivision
 Environment=QT_QPA_PLATFORM=eglfs
 Environment=QT_QPA_EGLFS_INTEGRATION=eglfs_kms
+# Touchscreens often also present a mouse; a kiosk shows no cursor either way.
+Environment=QT_QPA_EGLFS_HIDECURSOR=1
+# Qt expects a UTF-8 locale and warns at every start without one.
+Environment=LANG=C.UTF-8
+# fontconfig keeps its cache here; the pivision user has no writable home.
+Environment=XDG_CACHE_HOME=/run/pivision
 # Close the splash screen before the app takes the display. "+" runs this
 # as root (the splash is root's); "-" ignores errors if it isn't running.
 ExecStartPre=-+/usr/bin/psplash-write QUIT
@@ -22,6 +29,10 @@ ExecStart=/usr/bin/pivision
 ExecStopPost=+/usr/libexec/pivision/crash-dump %n
 Restart=on-failure
 RestartSec=2
+# A warning repeated every frame (a webcam's bad JPEG data, say) would fill the
+# journal on the SD card; past this, journald drops lines and says how many.
+LogRateLimitIntervalSec=10s
+LogRateLimitBurst=200
 
 [Install]
 WantedBy=multi-user.target

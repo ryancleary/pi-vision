@@ -1,0 +1,12 @@
+# GeekPi/52Pi EP-0084 touch controller: ILITEK, USB 222a:0001.
+# https://wiki-md.52pi.com/docs/EP-0084
+#
+# It shows up twice: a multi-touch device and a mouse emulation of the same
+# touches. libinput (which Qt uses) would act on both, so ignore the mouse.
+ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="ILITEK ILITEK-TP Mouse", ENV{LIBINPUT_IGNORE_DEVICE}="1"
+
+# Its Y range doesn't match the glass: libinput's matrix maps the raw position
+# (0..1) to y' = 1.07*y - 0.063. Fitted from two points: the Metrics tab
+# (screen y 58, raw 0.149) and the bottom edge (y 597, raw 0.988).
+# https://wayland.freedesktop.org/libinput/doc/latest/device-configuration-via-udev.html
+ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="ILITEK ILITEK-TP", ENV{LIBINPUT_CALIBRATION_MATRIX}="1 0 0 0 1.07 -0.063"

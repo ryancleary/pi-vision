@@ -1,5 +1,7 @@
 qt_add_executable(pivision
     src/main.cpp
+    src/TerminationHandler.cpp
+    src/TerminationHandler.h
     src/Utils.cpp
     src/Utils.h
 )
@@ -17,6 +19,7 @@ qt_add_qml_module(pivision
         qml/CompareView.qml
         qml/MetricsPanel.qml
         qml/StageControl.qml
+        qml/StatusLine.qml
 )
 
 # Processing stages, in order, with defaults and slider ranges. Compiled in:
