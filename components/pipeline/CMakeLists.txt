@@ -4,12 +4,14 @@ add_library(pivision_pipeline STATIC
     include/pivision/pipeline/LatestFrameBuffer.h
     include/pivision/pipeline/Pipeline.h
     include/pivision/pipeline/StageConfig.h
+    private/CameraWatcher.h
     private/DetectionJob.h
     private/DetectionWorker.h
     private/FrameProcessor.h
     private/FrameProducer.h
     private/RawFrame.h
     private/Utils.h
+    src/CameraWatcher.cpp
     src/DetectionWorker.cpp
     src/FrameMetrics.cpp
     src/FrameProcessor.cpp
@@ -25,9 +27,13 @@ target_include_directories(pivision_pipeline
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/private
 )
 
+# libudev (part of systemd) tells us when cameras are plugged in or removed.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBUDEV REQUIRED IMPORTED_TARGET libudev)
+
 target_link_libraries(pivision_pipeline
     PUBLIC  pivision::capture pivision::processing pivision::detection Qt6::Core Qt6::Gui
-    PRIVATE pivision::logging pivision::utils opencv_imgproc
+    PRIVATE pivision::logging pivision::utils opencv_imgproc PkgConfig::LIBUDEV
 )
 
 # Lets QML modules in other components refer to Pipeline (see display).

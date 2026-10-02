@@ -16,6 +16,10 @@ public:
     CameraSource(std::string device, const CameraConfig &config);
 
     bool open() override;
+    // Opens the same device again or, if it came back under another node
+    // (a re-plugged webcam can move from /dev/video0 to /dev/video2), the
+    // first camera with the same driver name.
+    bool reopen() override;
     bool read(Frame &out) override;
     void close() override;
     // The driver's name once open, e.g. "HD Webcam C270 (/dev/video0)".
@@ -25,7 +29,8 @@ public:
 
 private:
     std::string device_;
-    std::string label_; // "HD Webcam C270 (/dev/video0)" once opened
+    std::string label_;      // "HD Webcam C270 (/dev/video0)" once opened
+    std::string driverName_; // "HD Webcam C270" once opened
     CameraConfig config_;
     cv::VideoCapture capture_;
     double fps_ = 0.0;

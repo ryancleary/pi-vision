@@ -15,6 +15,7 @@ AutoSource::AutoSource(std::vector<std::string> devices, const CameraConfig &con
 bool AutoSource::open()
 {
     close();
+    active_.reset();
     for (const std::string &device : devices_) {
         auto camera = makeCameraSource(device, config_);
         if (camera->open()) {
@@ -30,6 +31,12 @@ bool AutoSource::open()
     return true;
 }
 
+bool AutoSource::reopen()
+{
+    // Keep the chosen source (and its name) and ask it to come back.
+    return active_ ? active_->reopen() : open();
+}
+
 bool AutoSource::read(Frame &out)
 {
     return active_ && active_->read(out);
@@ -37,10 +44,9 @@ bool AutoSource::read(Frame &out)
 
 void AutoSource::close()
 {
-    if (active_) {
+    // The choice is kept so reopen() can return to it; open() chooses again.
+    if (active_)
         active_->close();
-        active_.reset();
-    }
 }
 
 } // namespace pivision::capture

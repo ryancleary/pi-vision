@@ -21,7 +21,7 @@ TEST(AutoSourceTest, GivenNoCameraOpens_WhenOpening_ThenItFallsBackToTheTestPatt
     EXPECT_EQ(frame.image.rows, 240);
 }
 
-TEST(AutoSourceTest, GivenAClosedSource_WhenReading_ThenReadFails)
+TEST(AutoSourceTest, GivenAClosedSource_WhenReading_ThenReadFailsButTheChoiceIsKept)
 {
     auto source = makeAutoSource(std::vector<std::string> {});
     Frame frame;
@@ -30,9 +30,23 @@ TEST(AutoSourceTest, GivenAClosedSource_WhenReading_ThenReadFails)
     ASSERT_TRUE(source->open());
     EXPECT_TRUE(source->read(frame));
 
+    // Closed, as when its camera drops out: it keeps the name of what it chose,
+    // so the UI still says which source it is waiting for.
     source->close();
     EXPECT_FALSE(source->read(frame));
-    EXPECT_EQ(source->name(), "Auto");
+    EXPECT_EQ(source->name(), "Test pattern");
+}
+
+TEST(AutoSourceTest, GivenAClosedSource_WhenReopened_ThenTheSameChoiceReads)
+{
+    auto source = makeAutoSource(std::vector<std::string> {});
+    ASSERT_TRUE(source->open());
+    source->close();
+
+    ASSERT_TRUE(source->reopen());
+    Frame frame;
+    EXPECT_TRUE(source->read(frame));
+    EXPECT_EQ(source->name(), "Test pattern");
 }
 
 } // namespace pivision::capture

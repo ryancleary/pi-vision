@@ -28,10 +28,28 @@ bool CameraSource::open()
 
     const double reported = capture_.get(cv::CAP_PROP_FPS);
     fps_ = reported > 0.0 ? reported : config_.fps;
-    if (auto info = describeCamera(device_))
+    if (auto info = describeCamera(device_)) {
+        driverName_ = info->name;
         label_ = info->name + " (" + device_ + ")";
+    }
     index_ = 0;
     return true;
+}
+
+bool CameraSource::reopen()
+{
+    close();
+    if (open())
+        return true;
+    if (driverName_.empty())
+        return false;
+    for (const CameraInfo &camera : findCameras()) {
+        if (camera.name == driverName_ && camera.device != device_) {
+            device_ = camera.device;
+            return open();
+        }
+    }
+    return false;
 }
 
 bool CameraSource::read(Frame &out)

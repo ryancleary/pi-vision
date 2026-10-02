@@ -19,6 +19,9 @@ SourceSelector::SourceSelector(pipeline::Pipeline *pipeline, const capture::Came
     , pattern_(pattern)
 {
     refresh();
+    // Keep the list current as cameras are plugged in and out.
+    if (pipeline_)
+        connect(pipeline_, &pipeline::Pipeline::camerasChanged, this, &SourceSelector::refresh);
 }
 
 SourceSelector *SourceSelector::create(QQmlEngine *, QJSEngine *engine)

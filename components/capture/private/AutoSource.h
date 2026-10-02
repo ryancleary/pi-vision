@@ -11,13 +11,16 @@
 namespace pivision::capture {
 
 // Tries each camera in turn and falls back to the test pattern. Once open,
-// every call goes to whichever source was chosen.
+// every call goes to whichever source was chosen. If that was a camera,
+// reopen() waits for that camera to come back rather than falling back to the
+// test pattern.
 class AutoSource final : public FrameSource {
 public:
     AutoSource(std::vector<std::string> devices, const CameraConfig &config,
         const TestPatternConfig &fallback);
 
     bool open() override;
+    bool reopen() override;
     bool read(Frame &out) override;
     void close() override;
     std::string name() const override { return active_ ? active_->name() : "Auto"; }

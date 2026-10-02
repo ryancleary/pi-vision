@@ -36,6 +36,7 @@ Pipeline::Pipeline(std::unique_ptr<capture::FrameSource> source, QObject *parent
     connect(processor_.get(), &FrameProcessor::frameAvailable, this, &Pipeline::onProcessedFrame);
     connect(producer_.get(), &FrameProducer::opened, this, &Pipeline::onOpened);
     connect(producer_.get(), &FrameProducer::failed, this, &Pipeline::onFailed);
+    connect(producer_.get(), &FrameProducer::camerasChanged, this, &Pipeline::camerasChanged);
     connect(processor_.get(), &FrameProcessor::detectionJobAvailable, detector_.get(),
         &DetectionWorker::detectLatest);
     connect(detector_.get(), &DetectionWorker::resultAvailable, this, &Pipeline::onDetectionResult);

@@ -25,6 +25,11 @@ public:
 
     virtual void close() = 0;
 
+    // Called to get frames again after read() started failing (a camera
+    // unplugged, or reset by USB). The default just opens again; a source
+    // that can find its device under a new name does so here.
+    virtual bool reopen() { return open(); }
+
     // Name shown in the UI.
     virtual std::string name() const = 0;
 

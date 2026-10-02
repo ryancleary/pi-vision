@@ -9,7 +9,8 @@ SRCREV = "57c57ee206c809a1645fc50e7782922180507c00"
 PV = "0.1+git"
 S = "${WORKDIR}/git"
 
-DEPENDS = "qtbase qtdeclarative qtdeclarative-native opencv"
+# udev: libudev, for camera hotplug (provided by systemd).
+DEPENDS = "qtbase qtdeclarative qtdeclarative-native opencv udev"
 
 inherit qt6-cmake useradd
 

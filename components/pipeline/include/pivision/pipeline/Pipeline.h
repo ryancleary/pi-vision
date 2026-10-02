@@ -101,6 +101,8 @@ signals:
     void errorStringChanged();
     void detectionAvailable();
     void detectorStateChanged();
+    // A camera was plugged in or removed (from udev); lists of sources are stale.
+    void camerasChanged();
 
 private:
     void onProcessedFrame();

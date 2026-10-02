@@ -7,6 +7,7 @@
 
 #include <pivision/logging/Logging.h>
 
+#include "CameraWatcher.h"
 #include "Utils.h"
 
 namespace pivision::pipeline {
@@ -23,16 +24,27 @@ FrameProducer::~FrameProducer() = default;
 void FrameProducer::start()
 {
     running_ = true;
+    if (!watcher_) {
+        watcher_ = new CameraWatcher(this);
+        connect(watcher_, &CameraWatcher::cameraAdded, this, &FrameProducer::onCameraAdded);
+        connect(watcher_, &CameraWatcher::cameraAdded, this, &FrameProducer::camerasChanged);
+        connect(watcher_, &CameraWatcher::cameraRemoved, this, &FrameProducer::camerasChanged);
+    }
     openSource();
 }
 
 void FrameProducer::stop()
 {
     running_ = false;
+    waitingForSource_ = false;
     if (timer_)
         timer_->stop();
     if (source_)
         source_->close();
+    // Its socket notifier must go on this thread, not when the producer is
+    // destroyed on another one.
+    delete watcher_;
+    watcher_ = nullptr;
 }
 
 void FrameProducer::replaceSource(std::unique_ptr<capture::FrameSource> source)
@@ -43,6 +55,7 @@ void FrameProducer::replaceSource(std::unique_ptr<capture::FrameSource> source)
         source_->close();
 
     source_ = std::move(source);
+    waitingForSource_ = false;
     ++generation_;
     buffer_.take(); // drop any frame from the old source
 
@@ -61,7 +74,11 @@ void FrameProducer::openSource()
         emit failed(QStringLiteral("Could not open %1").arg(nameOf(*source_)));
         return;
     }
+    startReading();
+}
 
+void FrameProducer::startReading()
+{
     // Created here rather than in the constructor so the timer belongs to this thread.
     if (!timer_) {
         timer_ = new QTimer(this);
@@ -85,8 +102,13 @@ void FrameProducer::tick()
         timer_->stop();
         source_->close();
         qCWarning(logging::lcCapture) << nameOf(*source_) << "stopped producing frames after"
-                             << framesRead_ << "frames";
-        emit failed(QStringLiteral("%1 stopped producing frames").arg(nameOf(*source_)));
+                             << framesRead_ << "frames; waiting for it to come back";
+        emit failed(QStringLiteral("%1 stopped producing frames. Waiting for it to come back…")
+                        .arg(nameOf(*source_)));
+        waitingForSource_ = true;
+        // It may already be back: a webcam reset by USB returns within seconds,
+        // possibly before the failed read noticed it was gone.
+        tryReopen();
         return;
     }
 
@@ -97,6 +119,25 @@ void FrameProducer::tick()
     if (buffer_.put({ std::move(frame_), generation_ }))
         emit frameAvailable();
     frame_ = {};
+}
+
+void FrameProducer::onCameraAdded()
+{
+    if (waitingForSource_)
+        tryReopen();
+}
+
+void FrameProducer::tryReopen()
+{
+    if (!running_ || !waitingForSource_ || !source_)
+        return;
+    if (!source_->reopen()) {
+        qCDebug(logging::lcCapture) << nameOf(*source_) << "not back yet";
+        return;
+    }
+    waitingForSource_ = false;
+    qCInfo(logging::lcCapture) << nameOf(*source_) << "is back";
+    startReading();
 }
 
 } // namespace pivision::pipeline

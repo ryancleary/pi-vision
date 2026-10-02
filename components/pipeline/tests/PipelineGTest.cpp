@@ -2,12 +2,16 @@
 
 #include <filesystem>
 #include <functional>
+#include <memory>
 
 #include <QElapsedTimer>
 #include <QImage>
 #include <QSignalSpy>
 #include <QTest>
 
+#include <opencv2/core.hpp>
+
+#include <pivision/capture/FrameSource.h>
 #include <pivision/capture/SourceFactory.h>
 #include <pivision/pipeline/Pipeline.h>
 #include <pivision/pipeline/StageConfig.h>
@@ -18,6 +22,48 @@ namespace pivision::pipeline {
 // Tests here need a Qt event loop: signals cross threads.
 class PipelineTest : public testsupport::QtEventLoopFixture {
 protected:
+    // A camera stand-in that stops after a set number of frames, like a webcam
+    // dropping off USB, and comes back when reopened.
+    class DroppingSource final : public capture::FrameSource {
+    public:
+        static constexpr int kWidth = 64;
+        static constexpr int kHeight = 48;
+        static constexpr double kFps = 60.0;
+
+        explicit DroppingSource(int framesBeforeDrop)
+            : framesLeft_(framesBeforeDrop)
+        {
+        }
+
+        bool open() override { return true; }
+        bool reopen() override
+        {
+            framesLeft_ = kNeverDrops;
+            return true;
+        }
+        bool read(capture::Frame &out) override
+        {
+            if (framesLeft_ == 0)
+                return false;
+            if (framesLeft_ > 0)
+                --framesLeft_;
+            out.image = cv::Mat(kHeight, kWidth, CV_8UC3, cv::Scalar::all(0));
+            out.index = index_++;
+            out.captured = std::chrono::steady_clock::now();
+            return true;
+        }
+        void close() override {}
+        std::string name() const override { return "Dropping source"; }
+        double nominalFps() const override { return kFps; }
+
+    private:
+        static constexpr int kNeverDrops = -1;
+        int framesLeft_; // frames until it drops out; kNeverDrops once reopened
+        std::uint64_t index_ = 0;
+    };
+
+    static constexpr int kFramesBeforeDrop = 5;
+
     static capture::TestPatternConfig patternOfWidth(int width)
     {
         capture::TestPatternConfig config;
@@ -323,6 +369,20 @@ TEST_F(PipelineTest, GivenAMissingModel_WhenDetectionIsEnabled_ThenTheStateIsFai
     ASSERT_TRUE(waitForDetectorState(pipeline, DetectorState::Failed));
     EXPECT_FALSE(pipeline.detectorError().isEmpty());
     EXPECT_FALSE(pipeline.latestDetection().has_value());
+}
+
+TEST_F(PipelineTest, GivenASourceThatDropsOut_WhenItCanBeReopened_ThenFramesResumeAndTheErrorClears)
+{
+    Pipeline pipeline(std::make_unique<DroppingSource>(kFramesBeforeDrop));
+    QSignalSpy failed(&pipeline, &Pipeline::failed);
+    pipeline.start();
+
+    // It reports the drop out, then reopens straight away and carries on.
+    ASSERT_TRUE(failed.wait(2000));
+    EXPECT_TRUE(failed.first().first().toString().contains(QStringLiteral("Waiting")));
+    QSignalSpy available(&pipeline, &Pipeline::frameAvailable);
+    ASSERT_TRUE(available.wait(2000));
+    EXPECT_TRUE(pipeline.errorString().isEmpty());
 }
 
 } // namespace pivision::pipeline
