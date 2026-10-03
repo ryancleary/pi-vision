@@ -5,7 +5,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=35189d49d63465911468cb1f5b244583"
 
 # Built from GitHub at a pinned commit. Update SRCREV after pushing app changes.
 SRC_URI = "git://github.com/ryancleary/pi-vision.git;protocol=https;branch=main"
-SRCREV = "57c57ee206c809a1645fc50e7782922180507c00"
+SRCREV = "5477d03b33ca4660a047d09b07271aebb7a52c94"
 PV = "0.1+git"
 S = "${WORKDIR}/git"
 
