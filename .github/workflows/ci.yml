@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build libgtest-dev libudev-dev \
+            ninja-build libgtest-dev libudev-dev ffmpeg \
             libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 

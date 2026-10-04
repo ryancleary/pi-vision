@@ -1,10 +1,13 @@
 #include <pivision/display/Registration.h>
 
+#include <utility>
+
 #include "CaptureControl.h"
 #include "DetectionControl.h"
 #include "MetricsMonitor.h"
 #include "PipelineForeign.h"
 #include "ProcessingControl.h"
+#include "ScenarioPlayer.h"
 #include "SourceSelector.h"
 #include "UiSettings.h"
 #include "UsbControl.h"
@@ -58,6 +61,15 @@ void exposeUiConfig(const UiConfig &config, QObject *parent)
 void exposeDetection(pivision::pipeline::Pipeline *pipeline)
 {
     DetectionControl::instance_ = new DetectionControl(pipeline, pipeline);
+}
+
+void exposeScenario(pivision::pipeline::Pipeline *pipeline, std::optional<Scenario> scenario,
+    const QString &name, const QString &resultsPath)
+{
+    ScenarioPlayer::instance_ = new ScenarioPlayer(pipeline, ProcessingControl::instance_,
+        DetectionControl::instance_, CaptureControl::instance_, pipeline);
+    if (scenario)
+        ScenarioPlayer::instance_->play(std::move(*scenario), name, resultsPath);
 }
 
 } // namespace pivision::display

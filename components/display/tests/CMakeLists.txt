@@ -1,5 +1,6 @@
 pivision_add_tests(display
     SOURCES
+        ScenarioGTest.cpp
         UiConfigGTest.cpp
         UtilsGTest.cpp
 )
@@ -12,4 +13,6 @@ target_compile_definitions(pivision_display_tests PRIVATE
     PIVISION_UI_CONFIG="${PROJECT_SOURCE_DIR}/app/config/ui.json"
     # The image's display profiles; each may override ui.json for its screen.
     PIVISION_DISPLAY_PROFILES="${PROJECT_SOURCE_DIR}/meta-pivision/recipes-bsp/pivision-display/files"
+    # The system tests' scenarios, so a broken one fails here first.
+    PIVISION_SYSTEM_TESTS="${PROJECT_SOURCE_DIR}/tests/system"
 )

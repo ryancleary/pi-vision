@@ -10,6 +10,8 @@
   scripts/pv stop TARGET                      stop a QEMU target started with run --background
   scripts/pv logs TARGET [options]            collect logs into logs/TARGET/ (see: logs --help)
   scripts/pv captures TARGET [options]        copy the app's captures into logs/TARGET/captures/
+  scripts/pv systest TARGET NAME [options]    play tests/system/NAME.json on TARGET (see: systest --help)
+  scripts/pv gif [DIR]                        turn frames recorded by systest --record into a GIF
   scripts/pv clean WHAT [options]             remove build output (see: clean --help)
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
@@ -44,6 +46,21 @@ DESKTOP_BUILD_DIR = REPO / "build"
 FETCHED_ASSET_GLOBS = ["assets/models/*.onnx", "assets/media/*"]
 QEMU_STATE_DIR = LOG_ROOT / "qemu"
 DEVICE_LOG_ROOT = REPO / "logs"
+SYSTEM_TESTS_DIR = REPO / "tests" / "system"
+SYSTEM_TEST_CLIP = REPO / "assets" / "media" / "vtest-640x480-mjpeg.avi"
+SYSTEST_DIR_ON_DEVICE = "/tmp/pivision-systest"
+# The service's environment (pivision.service), so a test runs the app as it normally runs.
+DEVICE_APP_ENVIRONMENT = {
+    "QT_QPA_PLATFORM": "eglfs",
+    "QT_QPA_EGLFS_INTEGRATION": "eglfs_kms",
+    "QT_QPA_EGLFS_HIDECURSOR": "1",
+    "LANG": "C.UTF-8",
+    "XDG_RUNTIME_DIR": "/run/pivision",
+    "XDG_CACHE_HOME": "/run/pivision",
+}
+GIF_FPS = 8  # the rate WindowRecorder saves frames at
+GIF_WIDTH = 640  # the UI stays readable; about 6 MB for the 30 s demo
+GIF_COLORS = 128  # half of a GIF's 256: barely visible on this UI, a quarter smaller
 CRASH_DIR_ON_DEVICE = "/var/crash"
 CAPTURE_DIR_ON_DEVICE = "/var/crash/captures"
 SSH_OPTIONS = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
@@ -611,6 +628,155 @@ def collect_captures(target, args):
     return 0
 
 
+def known_scenarios():
+    return sorted(path.stem for path in SYSTEM_TESTS_DIR.glob("*.json"))
+
+
+def systest_app_args(scenario_path, out_dir, args, clip):
+    """The app's arguments for a system test: results, captures and log in out_dir."""
+    command = ["--scenario", str(scenario_path), "--results", f"{out_dir}/results.json",
+               "--capture-dir", f"{out_dir}/captures", "--capture-keep", "0",
+               "--log-file", f"{out_dir}/pivision.log"]
+    if args.record:
+        command += ["--record", f"{out_dir}/frames"]
+    if args.camera_format:
+        command += ["--camera-format", args.camera_format]
+    if clip:
+        command.append(str(clip))
+    return command
+
+
+def print_systest_results(out_dir):
+    """One line per step, then the main numbers from each capture."""
+    results_file = out_dir / "results.json"
+    if not results_file.exists():
+        print(f"No results.json in {out_dir.relative_to(REPO)}; see pivision.log there")
+        return
+    results = json.loads(results_file.read_text())
+    for step in results["steps"]:
+        action = step["do"]
+        what = " ".join(f"{key}={value}" for key, value in action.items() if key not in ("do", "about"))
+        status = "ok    " if step["passed"] else "FAILED"
+        detail = f"  ({step['detail']})" if step.get("detail") else ""
+        print(f"{status} {step['step']:>2} {action['do']:<16} {what}{detail}")
+
+    rows = []
+    for info_file in sorted((out_dir / "captures").glob("*/info.json")):
+        info = json.loads(info_file.read_text())
+        metrics = info.get("metrics", {})
+        temperature = metrics.get("temperatureC")
+        rows.append((info.get("label", info_file.parent.name),
+                     f"{metrics.get('displayFps', 0):.1f}", f"{metrics.get('stagesMs', 0):.1f}",
+                     f"{metrics.get('detectionMs', 0):.0f}" if metrics.get("detecting") else "-",
+                     f"{metrics.get('cpuPercent', 0):.0f}",
+                     f"{temperature:.0f}" if isinstance(temperature, (int, float)) else "n/a",
+                     ",".join((metrics.get("throttle") or {}).get("now", [])) or "-"))
+    if rows:
+        header = ("capture", "fps", "stages ms", "detect ms", "cpu %", "temp C", "throttled")
+        widths = [max(len(str(row[i])) for row in rows + [header]) for i in range(len(header))]
+        print()
+        for row in [header] + rows:
+            print("  ".join(str(cell).ljust(width) for cell, width in zip(row, widths)))
+    print(f"\n{'PASSED' if results['passed'] else 'FAILED'}: {results['failures']} failed check(s); "
+          f"everything is in {out_dir.relative_to(REPO)}/")
+
+
+def run_systest(target_name, args):
+    """Plays tests/system/NAME.json, on the desktop build or a device over SSH.
+
+    On a device the service is stopped for the run and started again after, and
+    the app runs as the service would (same user, same environment) through
+    systemd-run. Results, captures, the app's log and any recorded frames land in
+    logs/TARGET/systest/<time>-NAME/.
+    """
+    if args.scenario not in known_scenarios():
+        fail(f"unknown scenario '{args.scenario}'. Known: {', '.join(known_scenarios())}")
+    scenario = SYSTEM_TESTS_DIR / f"{args.scenario}.json"
+    clip = None if args.camera else SYSTEM_TEST_CLIP
+    if clip and not clip.exists():
+        fail(f"{clip.relative_to(REPO)} missing; run scripts/fetch-assets.sh (needs ffmpeg)")
+
+    target_dir = DEVICE_LOG_ROOT / target_name / "systest"
+    out_dir = target_dir / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{args.scenario}"
+    out_dir.mkdir(parents=True)
+
+    if target_name == "desktop":
+        app = DESKTOP_BUILD_DIR / args.preset / "app" / "pivision"
+        if not app.exists():
+            fail(f"{app.relative_to(REPO)} not built; run: scripts/pv build desktop --preset {args.preset}")
+        status = run([str(app)] + systest_app_args(scenario, out_dir, args, clip))
+    else:
+        target = get_target(target_name)
+        remote_dir = SYSTEST_DIR_ON_DEVICE
+        # Send the scenario (and clip) as a tar stream: nothing beyond ssh is needed on the device.
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "upload.tar"
+            with tarfile.open(archive, "w") as tar:
+                tar.add(scenario, arcname=scenario.name)
+                if clip:
+                    tar.add(clip, arcname=clip.name)
+            setup = (f"rm -rf {remote_dir} && mkdir -p {remote_dir} && tar -xf - -C {remote_dir} && "
+                     f"chown -R pivision:pivision {remote_dir}")
+            with archive.open("rb") as upload:
+                if subprocess.run(ssh_command(target, args, setup), stdin=upload).returncode != 0:
+                    fail(f"could not copy the test to {target_name}")
+
+        device_clip = f"{remote_dir}/{clip.name}" if clip else None
+        app_args = " ".join(shlex.quote(part) for part in
+                            systest_app_args(f"{remote_dir}/{scenario.name}", remote_dir, args, device_clip))
+        environment = " ".join(f"--setenv={key}={value}" for key, value in DEVICE_APP_ENVIRONMENT.items())
+        remote = (f"systemctl stop pivision pivision-failed; "
+                  f"systemd-run --quiet --wait --pipe --collect --uid=pivision -p RuntimeDirectory=pivision "
+                  f"{environment} /usr/bin/pivision {app_args}; status=$?; "
+                  f"systemctl start pivision; exit $status")
+        print(f"Running {args.scenario} on {target_name}; the service is stopped until it finishes")
+        status = subprocess.run(ssh_command(target, args, remote)).returncode
+        if status == 255:
+            fail(f"could not reach {target_name}; is it running and reachable?")
+
+        fetch = f"cd {remote_dir} && tar -cf - results.json pivision.log captures $(ls -d frames 2>/dev/null)"
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "results.tar"
+            with archive.open("wb") as out:
+                subprocess.run(ssh_command(target, args, fetch), stdout=out)
+            if archive.stat().st_size:
+                with tarfile.open(archive) as tar:
+                    tar.extractall(out_dir, filter="data")
+
+    update_latest(target_dir, out_dir)
+    print_systest_results(out_dir)
+    if (out_dir / "frames").is_dir():
+        print(f"Frames recorded; make the GIF with: scripts/pv gif {(out_dir / 'frames').relative_to(REPO)}")
+    return 0 if status == 0 else 1
+
+
+def make_gif(args):
+    """Turns recorded frames into a GIF with ffmpeg: a palette made from the frames
+    themselves keeps the UI's colors clean, as https://ffmpeg.org/ffmpeg-filters.html#palettegen describes."""
+    if not shutil.which("ffmpeg"):
+        fail("ffmpeg not found")
+    if args.frames:
+        frames = Path(args.frames)
+    else:
+        latest = sorted(DEVICE_LOG_ROOT.glob("*/systest/latest/frames"))
+        if not latest:
+            fail("no recorded frames found; run: scripts/pv systest TARGET demo --record")
+        frames = max(latest, key=lambda path: path.resolve().stat().st_mtime)
+    if not any(frames.glob("frame-*.jpg")):
+        fail(f"no frame-*.jpg in {frames}")
+    output = Path(args.output) if args.output else frames.parent / "demo.gif"
+    # stats_mode=diff and diff_mode=rectangle favour what changes between frames
+    # (the video), so the static UI doesn't eat the palette or the file size.
+    filters = (f"scale={args.width}:-1:flags=lanczos,split[a][b];"
+               f"[a]palettegen=max_colors={GIF_COLORS}:stats_mode=diff[p];"
+               f"[b][p]paletteuse=dither=bayer:diff_mode=rectangle")
+    status = run(["ffmpeg", "-v", "error", "-y", "-framerate", str(GIF_FPS),
+                  "-i", str(frames / "frame-%05d.jpg"), "-vf", filters, str(output)])
+    if status == 0:
+        print(f"{output} ({human_size(output.stat().st_size)})")
+    return status
+
+
 def collect_logs(target, args):
     if args.card:
         card = Path(args.card).expanduser()
@@ -680,6 +846,33 @@ def main():
     captures.add_argument("--host", help="device address (default: from the target file)")
     captures.add_argument("--port", type=int, help="SSH port (default: from the target file)")
 
+    systest = commands.add_parser(
+        "systest", help="play a system test scenario on the desktop or a device",
+        description="Plays tests/system/NAME.json against OpenCV's vtest.avi clip (or the camera "
+                    "with --camera). TARGET is 'desktop' (the local build) or an image target "
+                    "reachable over SSH. Results, labelled captures and the app's log go to "
+                    "logs/TARGET/systest/<time>-NAME/, and a summary is printed. Exits 1 if a "
+                    "check failed.")
+    systest.add_argument("target", help="'desktop' or an image target, e.g. rpi3")
+    systest.add_argument("scenario", help="a file in tests/system without .json: smoke, benchmark, demo")
+    systest.add_argument("--camera", action="store_true",
+                         help="use the camera (first one found) instead of the test clip")
+    systest.add_argument("--camera-format", choices=["mjpeg", "yuyv"],
+                         help="with --camera: the pixel format to request")
+    systest.add_argument("--record", action="store_true",
+                         help="also save the window as frames, for scripts/pv gif")
+    systest.add_argument("--preset", default="debug", choices=DESKTOP_PRESETS,
+                         help="for 'desktop': which build to run (default: debug)")
+    systest.add_argument("--host", help="device address (default: from the target file)")
+    systest.add_argument("--port", type=int, help="SSH port (default: from the target file)")
+
+    gif = commands.add_parser("gif", help="make a GIF from frames recorded by systest --record")
+    gif.add_argument("frames", nargs="?",
+                     help="frames directory (default: the newest systest run's frames)")
+    gif.add_argument("-o", "--output", help="GIF file (default: demo.gif next to the frames)")
+    gif.add_argument("--width", type=int, default=GIF_WIDTH,
+                     help=f"width in pixels (default: {GIF_WIDTH})")
+
     cleaning = commands.add_parser(
         "clean", help="remove build output",
         description="desktop: build/ (or one preset). image TARGET: yocto's tmp output, keeping "
@@ -720,6 +913,12 @@ def main():
 
     if args.command == "clean":
         return clean(args)
+
+    if args.command == "systest":
+        return run_systest(args.target, args)
+
+    if args.command == "gif":
+        return make_gif(args)
 
     if args.what == "desktop":
         check_desktop_environment()

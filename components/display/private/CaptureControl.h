@@ -39,8 +39,9 @@ public:
     QString directory() const { return store_.directory(); }
     bool busy() const { return busy_; }
 
-    // Starts a capture of the newest frame. The result arrives as saved() or failed().
-    Q_INVOKABLE void take();
+    // Starts a capture of the newest frame. The result arrives as saved() or
+    // failed(). A label (from a scenario step) is written into info.json.
+    Q_INVOKABLE void take(const QString &label = QString());
 
 signals:
     void busyChanged();
@@ -48,7 +49,7 @@ signals:
     void failed(const QString &message);
 
 private:
-    QJsonObject describe(const pipeline::DisplayFrame &frame) const;
+    QJsonObject describe(const pipeline::DisplayFrame &frame, const QString &label) const;
     void setBusy(bool busy);
 
     QPointer<pipeline::Pipeline> pipeline_;

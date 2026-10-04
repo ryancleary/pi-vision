@@ -1,0 +1,19 @@
+{
+  "about": "Pass/fail: frames reach the screen with no stages and with all of them, captures are written, and the detector finds the people in OpenCV's vtest.avi. Runs in CI (offscreen) and on a device (scripts/pv systest).",
+  "steps": [
+    { "do": "mode", "value": "sideBySide" },
+    { "do": "stages", "enabled": [] },
+    { "do": "expectFrames", "atLeast": 30, "withinSeconds": 10 },
+
+    { "do": "stages", "enabled": ["blur", "clahe", "grayscale", "edges"] },
+    { "do": "expectFrames", "atLeast": 30, "withinSeconds": 10 },
+    { "do": "capture", "label": "smoke: all stages" },
+
+    { "do": "stages", "enabled": [] },
+    { "do": "mode", "value": "detection" },
+    { "do": "detectionInput", "value": "raw" },
+    { "do": "expectDetection", "label": "person", "withinSeconds": 60,
+      "about": "The first detection also loads the model; a minute covers a Pi." },
+    { "do": "capture", "label": "smoke: detection" }
+  ]
+}

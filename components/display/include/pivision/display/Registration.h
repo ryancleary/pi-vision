@@ -1,11 +1,14 @@
 #ifndef PIVISION_DISPLAY_REGISTRATION_H
 #define PIVISION_DISPLAY_REGISTRATION_H
 
+#include <optional>
+
 #include <QList>
 #include <QObject>
 #include <QString>
 
 #include <pivision/capture/SourceFactory.h>
+#include <pivision/display/Scenario.h>
 #include <pivision/display/UiConfig.h>
 #include <pivision/pipeline/StageConfig.h>
 
@@ -61,6 +64,14 @@ void exposeDetection(pivision::pipeline::Pipeline *pipeline);
 // Call before loading any QML; owned by `pipeline`.
 void exposeMetricsMonitor(pivision::pipeline::Pipeline *pipeline,
     const QList<pivision::pipeline::StageConfig> &stages);
+
+// Makes the scenario player available to QML as the singleton `Scenario`,
+// driving the objects exposed above (call after them, before loading QML).
+// With a scenario, plays it once the first frame arrives and quits the app at
+// the end (see ScenarioPlayer); without one, does nothing.
+void exposeScenario(pivision::pipeline::Pipeline *pipeline,
+    std::optional<Scenario> scenario = std::nullopt, const QString &name = QString(),
+    const QString &resultsPath = QString());
 
 } // namespace pivision::display
 

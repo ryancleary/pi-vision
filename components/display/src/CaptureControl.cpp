@@ -38,7 +38,7 @@ CaptureControl *CaptureControl::create(QQmlEngine *, QJSEngine *engine)
     return instance_;
 }
 
-void CaptureControl::take()
+void CaptureControl::take(const QString &label)
 {
     if (busy_)
         return;
@@ -49,7 +49,7 @@ void CaptureControl::take()
     }
 
     // Gather everything now, on the GUI thread, so it all describes this moment.
-    QJsonObject info = describe(*frame);
+    QJsonObject info = describe(*frame, label);
     setBusy(true);
 
     // Encoding and writing happen on a pool thread so the UI keeps running.
@@ -77,7 +77,7 @@ void CaptureControl::take()
         });
 }
 
-QJsonObject CaptureControl::describe(const pipeline::DisplayFrame &frame) const
+QJsonObject CaptureControl::describe(const pipeline::DisplayFrame &frame, const QString &label) const
 {
     QJsonObject info {
         { QStringLiteral("app"),
@@ -98,6 +98,8 @@ QJsonObject CaptureControl::describe(const pipeline::DisplayFrame &frame) const
             processing_ ? stagesToJson(processing_->stageConfigs()) : QJsonArray() },
         { QStringLiteral("metrics"), metrics_ ? metrics_->toJson() : QJsonObject() },
     };
+    if (!label.isEmpty())
+        info.insert(QStringLiteral("label"), label);
     // Only in Detection mode, once the detector has a result for this source.
     if (const auto detection = pipeline_->latestDetection())
         info.insert(QStringLiteral("detection"), detectionToJson(*detection));

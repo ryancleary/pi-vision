@@ -180,6 +180,12 @@ ApplicationWindow {
                 Component.onCompleted: mode = modeFromName(UiConfig.defaultMode)
             }
 
+            // A scenario (system test) switches modes the way the buttons do.
+            Connections {
+                target: Scenario
+                function onModeRequested(mode) { compareView.mode = compareView.modeFromName(mode) }
+            }
+
             // Short messages (capture and USB results), shown for a few seconds.
             Label {
                 id: toast

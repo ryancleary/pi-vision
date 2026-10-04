@@ -131,6 +131,69 @@ std::optional<UiConfig> readUiConfig(const QJsonObject &root, UiConfig config, b
     return config;
 }
 
+std::optional<ScenarioStep> readScenarioStep(const QJsonObject &object, QString *error)
+{
+    const auto fail = [error](const QString &message) -> std::optional<ScenarioStep> {
+        if (error)
+            *error = message;
+        return std::nullopt;
+    };
+    // A positive number of seconds under `key`.
+    const auto seconds = [&object](const QString &key) {
+        const QJsonValue value = object.value(key);
+        return value.isDouble() && value.toDouble() > 0.0 ? value.toDouble() : 0.0;
+    };
+
+    ScenarioStep step;
+    step.text = QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact));
+    const QString action = object.value(QStringLiteral("do")).toString();
+
+    if (action == QStringLiteral("mode")) {
+        step.action = ScenarioStep::Action::Mode;
+        step.value = object.value(QStringLiteral("value")).toString();
+        if (!knownViewModes().contains(step.value))
+            return fail(QStringLiteral("mode must be one of %1").arg(knownViewModes().join(QStringLiteral(", "))));
+    } else if (action == QStringLiteral("stages")) {
+        step.action = ScenarioStep::Action::Stages;
+        const QJsonValue enabled = object.value(QStringLiteral("enabled"));
+        if (!enabled.isArray())
+            return fail(QStringLiteral("stages needs an \"enabled\" list (empty for none)"));
+        for (const QJsonValue &id : enabled.toArray())
+            step.stages.append(id.toString());
+    } else if (action == QStringLiteral("detectionInput")) {
+        step.action = ScenarioStep::Action::DetectionInput;
+        step.value = object.value(QStringLiteral("value")).toString();
+        if (step.value != QStringLiteral("raw") && step.value != QStringLiteral("processed"))
+            return fail(QStringLiteral("detectionInput must be \"raw\" or \"processed\""));
+    } else if (action == QStringLiteral("wait")) {
+        step.action = ScenarioStep::Action::Wait;
+        step.seconds = seconds(QStringLiteral("seconds"));
+        if (step.seconds <= 0.0)
+            return fail(QStringLiteral("wait needs \"seconds\" above 0"));
+    } else if (action == QStringLiteral("capture")) {
+        step.action = ScenarioStep::Action::Capture;
+        step.label = object.value(QStringLiteral("label")).toString();
+        if (step.label.isEmpty())
+            return fail(QStringLiteral("capture needs a \"label\""));
+    } else if (action == QStringLiteral("expectFrames")) {
+        step.action = ScenarioStep::Action::ExpectFrames;
+        step.atLeast = object.value(QStringLiteral("atLeast")).toInt();
+        step.seconds = seconds(QStringLiteral("withinSeconds"));
+        if (step.atLeast <= 0 || step.seconds <= 0.0)
+            return fail(QStringLiteral("expectFrames needs \"atLeast\" and \"withinSeconds\" above 0"));
+    } else if (action == QStringLiteral("expectDetection")) {
+        step.action = ScenarioStep::Action::ExpectDetection;
+        step.label = object.value(QStringLiteral("label")).toString();
+        step.seconds = seconds(QStringLiteral("withinSeconds"));
+        if (step.label.isEmpty() || step.seconds <= 0.0)
+            return fail(QStringLiteral("expectDetection needs a \"label\" and \"withinSeconds\" above 0"));
+    } else {
+        return fail(QStringLiteral("unknown \"do\": \"%1\"; one of %2")
+                        .arg(action, knownScenarioActions().join(QStringLiteral(", "))));
+    }
+    return step;
+}
+
 QVariantMap sourceEntry(const QString &label, const QString &spec)
 {
     return { { QStringLiteral("label"), label }, { QStringLiteral("spec"), spec } };

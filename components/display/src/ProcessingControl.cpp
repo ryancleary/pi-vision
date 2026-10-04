@@ -52,11 +52,12 @@ QVariantList ProcessingControl::stages() const
 void ProcessingControl::setEnabled(const QString &id, bool enabled)
 {
     pipeline::StageConfig *stage = find(id);
-    if (!stage || !pipeline_)
+    if (!stage || !pipeline_ || stage->enabled == enabled)
         return;
     stage->enabled = enabled;
     qCInfo(logging::lcDisplay) << "Stage" << id << (enabled ? "enabled" : "disabled");
     pipeline_->setStageEnabled(id, enabled);
+    emit stageToggled(id, enabled);
 }
 
 void ProcessingControl::setParameter(const QString &id, const QString &name, double value)

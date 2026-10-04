@@ -1,0 +1,49 @@
+{
+  "about": "Measurements, no limits (a Pi and a desktop differ too much for fixed thresholds). Each step holds for 10 s before its capture: the metrics average over the last second, and the detector needs time to settle. The captures' info.json files hold the numbers; their labels say which step they belong to.",
+  "steps": [
+    { "do": "mode", "value": "sideBySide" },
+    { "do": "stages", "enabled": [] },
+    { "do": "expectFrames", "atLeast": 30, "withinSeconds": 10 },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "01 baseline, no stages" },
+
+    { "do": "stages", "enabled": ["blur"] },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "02 blur" },
+
+    { "do": "stages", "enabled": ["clahe"] },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "03 clahe" },
+
+    { "do": "stages", "enabled": ["grayscale"] },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "04 grayscale" },
+
+    { "do": "stages", "enabled": ["edges"] },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "05 edges" },
+
+    { "do": "stages", "enabled": ["blur", "clahe", "grayscale", "edges"] },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "06 all stages" },
+
+    { "do": "stages", "enabled": [] },
+    { "do": "mode", "value": "detection" },
+    { "do": "detectionInput", "value": "raw" },
+    { "do": "expectDetection", "label": "person", "withinSeconds": 60,
+      "about": "Waits for the model to load before timing starts." },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "07 detection, raw" },
+
+    { "do": "stages", "enabled": ["blur", "clahe", "grayscale", "edges"] },
+    { "do": "detectionInput", "value": "processed" },
+    { "do": "wait", "seconds": 10 },
+    { "do": "capture", "label": "08 detection, processed, all stages" },
+
+    { "do": "stages", "enabled": [] },
+    { "do": "detectionInput", "value": "raw" },
+    { "do": "wait", "seconds": 120,
+      "about": "Two minutes of detection: does the Pi get hot enough to throttle?" },
+    { "do": "capture", "label": "09 detection, raw, after 2 min" }
+  ]
+}

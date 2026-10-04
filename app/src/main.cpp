@@ -5,8 +5,10 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
 #include <QSize>
 #include <QtQml/QQmlExtensionPlugin>
 
@@ -20,6 +22,7 @@
 
 #include "TerminationHandler.h"
 #include "Utils.h"
+#include "WindowRecorder.h"
 
 // PiVision.Display is a static QML module, so its plugin must be imported explicitly.
 Q_IMPORT_QML_PLUGIN(PiVision_DisplayPlugin)
@@ -80,11 +83,21 @@ int main(int argc, char *argv[])
         QStringLiteral("Camera pixel format to request: mjpeg (less USB bandwidth) or yuyv "
                        "(no JPEG decoding; default mjpeg)."),
         QStringLiteral("format"), QStringLiteral("mjpeg"));
+    const QCommandLineOption scenarioOption(QStringLiteral("scenario"),
+        QStringLiteral("Play the scenario <file> (a system test; see tests/system), then quit "
+                       "with 0 if every check passed, 1 if not."),
+        QStringLiteral("file"));
+    const QCommandLineOption resultsOption(QStringLiteral("results"),
+        QStringLiteral("With --scenario: write each step's result to <file> as JSON."),
+        QStringLiteral("file"));
+    const QCommandLineOption recordOption(QStringLiteral("record"),
+        QStringLiteral("Save the window as JPEG frames in <dir>, for a GIF (scripts/pv gif)."),
+        QStringLiteral("dir"));
     const QCommandLineOption verboseOption(QStringLiteral("verbose"),
         QStringLiteral("Include debug messages in the log."));
     parser.addOptions({ cameraOption, patternOption, sizeOption, processSizeOption, logFileOption,
         captureDirOption, captureKeepOption, usbRootOption, modelOption, uiConfigOption,
-        cameraFormatOption, verboseOption });
+        cameraFormatOption, scenarioOption, resultsOption, recordOption, verboseOption });
     parser.addPositionalArgument(QStringLiteral("source"),
         QStringLiteral("Video file, stream URL or /dev/video* device."), QStringLiteral("[source]"));
     parser.process(app);
@@ -152,6 +165,21 @@ int main(int argc, char *argv[])
     if (cameraFormat != QStringLiteral("mjpeg") && cameraFormat != QStringLiteral("yuyv"))
         return pivision::app::usageError(QStringLiteral("--camera-format must be mjpeg or yuyv"));
 
+    // Read up front, so a broken file stops the run before anything starts.
+    std::optional<pivision::display::Scenario> scenario;
+    if (parser.isSet(scenarioOption)) {
+        QFile scenarioFile(parser.value(scenarioOption));
+        QString scenarioError;
+        scenario = scenarioFile.open(QIODevice::ReadOnly)
+            ? pivision::display::parseScenario(scenarioFile.readAll(), &scenarioError)
+            : std::nullopt;
+        if (!scenario) {
+            qCCritical(pivision::logging::lcApp) << "Invalid scenario" << scenarioFile.fileName() << ":"
+                                                 << (scenarioError.isEmpty() ? scenarioFile.errorString() : scenarioError);
+            return EXIT_FAILURE;
+        }
+    }
+
     pivision::capture::CameraConfig camera;
     camera.width = size->width();
     camera.height = size->height();
@@ -200,12 +228,21 @@ int main(int argc, char *argv[])
         QStringLiteral(PIVISION_VERSION));
     pivision::display::exposeUsb(parser.value(usbRootOption), parser.value(captureDirOption),
         storage.crashDirectory, &pipeline);
+    pivision::display::exposeScenario(&pipeline, scenario,
+        QFileInfo(parser.value(scenarioOption)).completeBaseName(), parser.value(resultsOption));
 
     QQmlApplicationEngine engine;
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         [] { QCoreApplication::exit(EXIT_FAILURE); }, Qt::QueuedConnection);
     engine.loadFromModule("PiVision", "Main");
+
+    std::unique_ptr<pivision::app::WindowRecorder> recorder;
+    if (parser.isSet(recordOption)) {
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
+        if (window)
+            recorder = std::make_unique<pivision::app::WindowRecorder>(window, parser.value(recordOption));
+    }
 
     // systemctl stop sends SIGTERM; quit normally so it isn't counted as a crash.
     pivision::app::TerminationHandler termination;

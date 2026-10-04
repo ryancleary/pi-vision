@@ -57,3 +57,6 @@ endif()
 add_subdirectory(components)
 add_subdirectory(app)
 
+if(PIVISION_BUILD_TESTS)
+    add_subdirectory(tests/system)
+endif()

@@ -1,0 +1,23 @@
+{
+  "about": "About 30 s through the main features, for the README's GIF. Run with --record (scripts/pv systest TARGET demo --record), never while measuring: grabbing the window costs time.",
+  "steps": [
+    { "do": "mode", "value": "overlay" },
+    { "do": "stages", "enabled": [] },
+    { "do": "wait", "seconds": 2 },
+    { "do": "stages", "enabled": ["edges"] },
+    { "do": "wait", "seconds": 3 },
+    { "do": "mode", "value": "sideBySide" },
+    { "do": "stages", "enabled": ["blur", "edges"] },
+    { "do": "wait", "seconds": 3 },
+    { "do": "mode", "value": "pictureInPicture" },
+    { "do": "wait", "seconds": 3 },
+    { "do": "stages", "enabled": [] },
+    { "do": "mode", "value": "detection" },
+    { "do": "detectionInput", "value": "raw" },
+    { "do": "expectDetection", "label": "person", "withinSeconds": 60 },
+    { "do": "wait", "seconds": 6 },
+    { "do": "stages", "enabled": ["clahe"] },
+    { "do": "detectionInput", "value": "processed" },
+    { "do": "wait", "seconds": 5 }
+  ]
+}

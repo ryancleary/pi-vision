@@ -10,6 +10,7 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <pivision/display/Scenario.h>
 #include <pivision/display/UiConfig.h>
 #include <pivision/pipeline/DetectionResult.h>
 #include <pivision/pipeline/StageConfig.h>
@@ -40,6 +41,10 @@ std::optional<QJsonObject> jsonObject(const QByteArray &json, QString *error);
 // Checks the result either way.
 std::optional<UiConfig> readUiConfig(const QJsonObject &root, UiConfig config, bool modesRequired,
     QString *error);
+
+// One step of a scenario file, checked (see Scenario.h); nothing, and `error`
+// set, if it's malformed.
+std::optional<ScenarioStep> readScenarioStep(const QJsonObject &step, QString *error);
 
 // One entry of the source dropdown: { label, spec }.
 QVariantMap sourceEntry(const QString &label, const QString &spec);

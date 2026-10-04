@@ -4,6 +4,8 @@ qt_add_executable(pivision
     src/TerminationHandler.h
     src/Utils.cpp
     src/Utils.h
+    src/WindowRecorder.cpp
+    src/WindowRecorder.h
 )
 
 # Shared colors and sizes, used as "Theme" from any QML file in the module.

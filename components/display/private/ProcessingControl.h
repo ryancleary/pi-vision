@@ -40,6 +40,10 @@ public:
     Q_INVOKABLE void setEnabled(const QString &id, bool enabled);
     Q_INVOKABLE void setParameter(const QString &id, const QString &name, double value);
 
+signals:
+    // A stage was switched on or off (by its switch, or by a scenario).
+    void stageToggled(const QString &id, bool enabled);
+
 private:
     pipeline::StageConfig *find(const QString &id);
 

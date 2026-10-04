@@ -25,6 +25,15 @@ ColumnLayout {
         text: control.label
         checked: control.active
         onToggled: ProcessingControl.setEnabled(control.stageId, checked)
+
+        // Follow changes made elsewhere (a scenario switching stages).
+        Connections {
+            target: ProcessingControl
+            function onStageToggled(id, enabled) {
+                if (id === control.stageId)
+                    toggle.checked = enabled
+            }
+        }
     }
 
     Repeater {

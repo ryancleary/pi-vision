@@ -6,6 +6,7 @@ qt_add_qml_module(pivision_display
     VERSION 1.0
     SOURCES
         include/pivision/display/Registration.h
+        include/pivision/display/Scenario.h
         include/pivision/display/UiConfig.h
         private/CaptureControl.h
         private/DetectionControl.h
@@ -13,6 +14,7 @@ qt_add_qml_module(pivision_display
         private/MetricsMonitor.h
         private/PipelineForeign.h
         private/ProcessingControl.h
+        private/ScenarioPlayer.h
         private/SourceSelector.h
         private/UiSettings.h
         private/UsbControl.h
@@ -23,6 +25,8 @@ qt_add_qml_module(pivision_display
         src/MetricsMonitor.cpp
         src/ProcessingControl.cpp
         src/Registration.cpp
+        src/Scenario.cpp
+        src/ScenarioPlayer.cpp
         src/SourceSelector.cpp
         src/UiConfig.cpp
         src/UiSettings.cpp
