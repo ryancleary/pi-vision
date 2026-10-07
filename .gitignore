@@ -1,0 +1,30 @@
+# Build output
+build/
+build-*/
+out/
+
+# Qt Creator / CMake user files
+CMakeLists.txt.user*
+CMakeUserPresets.json
+*.user
+.qtcreator/
+
+# Yocto / kas work directory
+yocto/
+
+# Fetched assets (downloaded by scripts/fetch-assets.sh, verified by SHA256)
+assets/models/*
+!assets/models/.gitkeep
+assets/media/*
+!assets/media/.gitkeep
+
+# Release images
+*.wic
+*.wic.bz2
+*.bmap
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
