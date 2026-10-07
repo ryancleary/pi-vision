@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PIVISION_CAPTURE_FRAMESOURCE_H
+#define PIVISION_CAPTURE_FRAMESOURCE_H
 
 #include <string>
 
@@ -34,5 +35,6 @@ protected:
     FrameSource() = default;
 };
 
-} // namespace pivision::capture
+} 
+#endif	// namespace pivision::capture
 

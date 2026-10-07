@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PIVISION_CAPTURE_FRAME_H
+#define PIVISION_CAPTURE_FRAME_H
 
 #include <chrono>
 #include <cstdint>
@@ -14,5 +15,6 @@ struct Frame {
     std::chrono::steady_clock::time_point captured;  // when the source produced the frame
 };
 
-} // namespace pivision::capture
+} 
+#endif	// namespace pivision::capture
 
