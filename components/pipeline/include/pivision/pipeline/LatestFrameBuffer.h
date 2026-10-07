@@ -39,4 +39,3 @@ private:
 } // namespace pivision::pipeline
 
 #endif // PIVISION_PIPELINE_LATESTFRAMEBUFFER_H
-

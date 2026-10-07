@@ -29,4 +29,3 @@ std::uint64_t LatestFrameBuffer::droppedCount() const
 }
 
 } // namespace pivision::pipeline
-

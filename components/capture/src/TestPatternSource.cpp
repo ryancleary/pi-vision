@@ -39,28 +39,18 @@ bool TestPatternSource::read(Frame &out)
     const int x = static_cast<int>((m_index * 4) % static_cast<std::uint64_t>(travel));
     const int y = (m_config.height - box) / 2;
     cv::rectangle(out.image, cv::Rect(x, y, box, box), cv::Scalar(60, 200, 255), cv::FILLED);
-    cv::putText(out.image, std::to_string(m_index), cv::Point(10, 30),
-        cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+    cv::putText(out.image, std::to_string(m_index), cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX,
+        0.8, cv::Scalar(255, 255, 255), 2);
 
     out.index = m_index++;
     out.captured = std::chrono::steady_clock::now();
     return true;
 }
 
-void TestPatternSource::close()
-{
-    m_background.release();
-}
+void TestPatternSource::close() { m_background.release(); }
 
-std::string TestPatternSource::name() const
-{
-    return "Test pattern";
-}
+std::string TestPatternSource::name() const { return "Test pattern"; }
 
-double TestPatternSource::nominalFps() const
-{
-    return m_config.fps;
-}
+double TestPatternSource::nominalFps() const { return m_config.fps; }
 
 } // namespace pivision::capture
-

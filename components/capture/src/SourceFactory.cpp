@@ -10,4 +10,3 @@ std::unique_ptr<FrameSource> makeTestPatternSource(const TestPatternConfig &conf
 }
 
 } // namespace pivision::capture
-

@@ -6,4 +6,3 @@ namespace pivision::capture {
 FrameSource::~FrameSource() = default;
 
 } // namespace pivision::capture
-

@@ -17,4 +17,3 @@ void QtEventLoopFixture::SetUpTestSuite()
 }
 
 } // namespace pivision::testsupport
-

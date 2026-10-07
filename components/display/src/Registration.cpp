@@ -10,4 +10,3 @@ void exposePipeline(pivision::pipeline::Pipeline *pipeline)
 }
 
 } // namespace pivision::display
-

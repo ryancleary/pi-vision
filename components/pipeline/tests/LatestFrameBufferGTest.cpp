@@ -89,4 +89,3 @@ TEST(LatestFrameBuffer, ConcurrentProducerAndConsumerKeepOrderAndAccountForEvery
     // Every frame was either taken or replaced; none disappeared.
     EXPECT_EQ(taken + buffer.droppedCount(), frameCount);
 }
-

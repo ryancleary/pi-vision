@@ -14,4 +14,3 @@ void exposePipeline(pivision::pipeline::Pipeline *pipeline);
 } // namespace pivision::display
 
 #endif // PIVISION_DISPLAY_REGISTRATION_H
-
