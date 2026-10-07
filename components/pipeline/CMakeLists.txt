@@ -17,3 +17,6 @@ target_link_libraries(pivision_pipeline
     PUBLIC pivision::capture Qt6::Core Qt6::Gui
 )
 
+# Lets QML modules in other components refer to Pipeline (see display).
+qt_extract_metatypes(pivision_pipeline)
+

@@ -9,8 +9,15 @@ qt_add_qml_module(pivision
         qml/Main.qml
 )
 
-target_link_libraries(pivision PRIVATE Qt6::Quick)
+target_link_libraries(pivision PRIVATE
+    Qt6::Quick
+    pivision::capture
+    pivision::pipeline
+    pivision::display
+    pivision_displayplugin
+)
 
 install(TARGETS pivision
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
