@@ -2,8 +2,8 @@ header:
   version: 14
 
 machine: raspberrypi3-64
-distro: poky
-target: core-image-base
+distro: pivision
+target: pivision-image
 
 repos:
   # This repository. No URL means kas uses the repo the config file lives in.
