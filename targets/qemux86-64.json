@@ -3,5 +3,13 @@
   "kas": "kas/qemux86-64.yml",
   "machine": "qemux86-64",
   "image": "pivision-image",
-  "delivery": "qemu"
+  "delivery": "qemu",
+  "qemu": {
+    "binary": "qemu-system-x86_64",
+    "kernel": "bzImage",
+    "rootfs": "ext4",
+    "append": "root=/dev/vda rw console=ttyS0",
+    "cpus": 4,
+    "memory": 1024
+  }
 }
