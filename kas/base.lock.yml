@@ -4,8 +4,6 @@ overrides:
   repos:
     poky:
       commit: 4fb7016a07507683359ebd620f1951fd5ea44bfa
-    meta-raspberrypi:
-      commit: 6ca1f75017cc5d5acdb8bb05634c4bc01fa049fd
     meta-openembedded:
       commit: 0f00f8b9a21950640da8c5707343e5540133f86e
     meta-qt6:
