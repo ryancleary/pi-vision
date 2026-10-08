@@ -11,6 +11,7 @@
   scripts/pv logs TARGET [options]            collect logs into logs/TARGET/ (see: logs --help)
   scripts/pv captures TARGET [options]        copy the app's captures into logs/TARGET/captures/
   scripts/pv systest TARGET NAME [options]    play tests/system/NAME.json on TARGET (see: systest --help)
+  scripts/pv report TARGET [DIR...]           show (and save) the summaries of earlier systest runs
   scripts/pv gif [DIR]                        turn frames recorded by systest --record into a GIF
   scripts/pv clean WHAT [options]             remove build output (see: clean --help)
 
@@ -58,6 +59,8 @@ DEVICE_APP_ENVIRONMENT = {
     "XDG_RUNTIME_DIR": "/run/pivision",
     "XDG_CACHE_HOME": "/run/pivision",
 }
+# What pivision.service passes, so a device test with --camera matches normal use.
+DEVICE_CAMERA_FORMAT = "yuyv"
 GIF_FPS = 8  # the rate WindowRecorder saves frames at
 GIF_WIDTH = 640  # the UI stays readable; about 6 MB for the 30 s demo
 GIF_COLORS = 128  # half of a GIF's 256: barely visible on this UI, a quarter smaller
@@ -647,18 +650,30 @@ def systest_app_args(scenario_path, out_dir, args, clip):
 
 
 def print_systest_results(out_dir):
-    """One line per step, then the main numbers from each capture."""
+    """One line per step, then the main numbers from each capture. Also saved
+    as summary.txt in the run's directory."""
+    lines = systest_summary(out_dir)
+    text = "\n".join(lines)
+    print(text)
+    if (out_dir / "results.json").exists():
+        (out_dir / "summary.txt").write_text(text + "\n")
+
+
+def systest_summary(out_dir):
+    """The summary of one systest run, as lines of text."""
+    lines = []
     results_file = out_dir / "results.json"
     if not results_file.exists():
-        print(f"No results.json in {out_dir.relative_to(REPO)}; see pivision.log there")
-        return
+        lines.append(f"No results in {out_dir.relative_to(REPO)}: the app stopped before the scenario ran. "
+                     f"An app without --scenario needs a newer image.")
+        return lines
     results = json.loads(results_file.read_text())
     for step in results["steps"]:
         action = step["do"]
         what = " ".join(f"{key}={value}" for key, value in action.items() if key not in ("do", "about"))
         status = "ok    " if step["passed"] else "FAILED"
         detail = f"  ({step['detail']})" if step.get("detail") else ""
-        print(f"{status} {step['step']:>2} {action['do']:<16} {what}{detail}")
+        lines.append(f"{status} {step['step']:>2} {action['do']:<16} {what}{detail}")
 
     rows = []
     for info_file in sorted((out_dir / "captures").glob("*/info.json")):
@@ -674,11 +689,29 @@ def print_systest_results(out_dir):
     if rows:
         header = ("capture", "fps", "stages ms", "detect ms", "cpu %", "temp C", "throttled")
         widths = [max(len(str(row[i])) for row in rows + [header]) for i in range(len(header))]
-        print()
+        lines.append("")
         for row in [header] + rows:
-            print("  ".join(str(cell).ljust(width) for cell, width in zip(row, widths)))
-    print(f"\n{'PASSED' if results['passed'] else 'FAILED'}: {results['failures']} failed check(s); "
-          f"everything is in {out_dir.relative_to(REPO)}/")
+            lines.append("  ".join(str(cell).ljust(width) for cell, width in zip(row, widths)).rstrip())
+    lines.append(f"\n{'PASSED' if results['passed'] else 'FAILED'}: {results['failures']} failed check(s); "
+                 f"source: {results.get('source', '?')}; everything is in {out_dir.relative_to(REPO)}/")
+    return lines
+
+
+def systest_report(args):
+    """Prints (and saves) the summary of earlier systest runs: the given
+    directories, or every run of TARGET, oldest first."""
+    if args.runs:
+        runs = [Path(run) for run in args.runs]
+    else:
+        runs = sorted(path for path in (DEVICE_LOG_ROOT / args.target / "systest").glob("*-*")
+                      if path.is_dir() and not path.is_symlink())
+    if not runs:
+        fail("no systest runs found")
+    for run_dir in runs:
+        print(f"=== {run_dir.name} ===")
+        print_systest_results(run_dir.resolve())
+        print()
+    return 0
 
 
 def run_systest(target_name, args):
@@ -708,6 +741,8 @@ def run_systest(target_name, args):
     else:
         target = get_target(target_name)
         remote_dir = SYSTEST_DIR_ON_DEVICE
+        if args.camera and not args.camera_format:
+            args.camera_format = DEVICE_CAMERA_FORMAT
         # Send the scenario (and clip) as a tar stream: nothing beyond ssh is needed on the device.
         with tempfile.TemporaryDirectory() as tmp:
             archive = Path(tmp) / "upload.tar"
@@ -734,7 +769,9 @@ def run_systest(target_name, args):
         if status == 255:
             fail(f"could not reach {target_name}; is it running and reachable?")
 
-        fetch = f"cd {remote_dir} && tar -cf - results.json pivision.log captures $(ls -d frames 2>/dev/null)"
+        # Only what exists: if the app stopped early, some of it was never written.
+        fetch = (f"cd {remote_dir} && set -- $(ls -d results.json pivision.log captures frames 2>/dev/null) && "
+                 f"[ $# -gt 0 ] && tar -cf - \"$@\"")
         with tempfile.TemporaryDirectory() as tmp:
             archive = Path(tmp) / "results.tar"
             with archive.open("wb") as out:
@@ -858,13 +895,21 @@ def main():
     systest.add_argument("--camera", action="store_true",
                          help="use the camera (first one found) instead of the test clip")
     systest.add_argument("--camera-format", choices=["mjpeg", "yuyv"],
-                         help="with --camera: the pixel format to request")
+                         help=f"with --camera: the pixel format to request (default: the app's on "
+                              f"the desktop, {DEVICE_CAMERA_FORMAT} on a device, as its service runs it)")
     systest.add_argument("--record", action="store_true",
                          help="also save the window as frames, for scripts/pv gif")
     systest.add_argument("--preset", default="debug", choices=DESKTOP_PRESETS,
                          help="for 'desktop': which build to run (default: debug)")
     systest.add_argument("--host", help="device address (default: from the target file)")
     systest.add_argument("--port", type=int, help="SSH port (default: from the target file)")
+
+    report = commands.add_parser(
+        "report", help="show the summaries of earlier systest runs",
+        description="Prints each run's step results and capture numbers again, and saves them "
+                    "as summary.txt in the run's directory.")
+    report.add_argument("target", help="whose runs: 'desktop' or an image target")
+    report.add_argument("runs", nargs="*", help="run directories (default: all of TARGET's runs)")
 
     gif = commands.add_parser("gif", help="make a GIF from frames recorded by systest --record")
     gif.add_argument("frames", nargs="?",
@@ -916,6 +961,9 @@ def main():
 
     if args.command == "systest":
         return run_systest(args.target, args)
+
+    if args.command == "report":
+        return systest_report(args)
 
     if args.command == "gif":
         return make_gif(args)

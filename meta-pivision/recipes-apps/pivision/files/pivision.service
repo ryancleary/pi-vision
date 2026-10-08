@@ -24,7 +24,10 @@ Environment=XDG_CACHE_HOME=/run/pivision
 # Close the splash screen before the app takes the display. "+" runs this
 # as root (the splash is root's); "-" ignores errors if it isn't running.
 ExecStartPre=-+/usr/bin/psplash-write QUIT
-ExecStart=/usr/bin/pivision
+# YUYV (uncompressed) from the camera: measured on the Pi 3 it costs no more
+# CPU than MJPEG at 640x480, and it avoids libjpeg's "Corrupt JPEG data"
+# warnings that some webcams' frames trigger (see CameraConfig::mjpeg).
+ExecStart=/usr/bin/pivision --camera-format yuyv
 # After every stop: if it wasn't clean, save the journal to the crash partition.
 ExecStopPost=+/usr/libexec/pivision/crash-dump %n
 Restart=on-failure
