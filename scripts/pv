@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""pi-vision build tool.
+
+  scripts/pv targets                          list image targets
+  scripts/pv build desktop [--preset NAME]    configure, build and test the desktop app
+  scripts/pv build image TARGET               build the Yocto image for TARGET
+  scripts/pv build all                        every desktop preset and every image target
+  scripts/pv size TARGET                      sizes of the last image built for TARGET
+
+Image targets are defined in targets/<name>.json. Each points at a kas file,
+which stays the source of truth for the Yocto configuration.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+TARGETS_DIR = REPO / "targets"
+LOG_ROOT = REPO / "build-logs"
+KAS = REPO / "scripts" / "kas.sh"
+DEPLOY_DIR = REPO / "yocto" / "build" / "tmp" / "deploy" / "images"
+
+DESKTOP_PRESETS = ["debug", "release"]
+TESTED_PRESETS = {"debug"}  # presets that have a matching ctest preset
+REQUIRED_TARGET_KEYS = ["description", "kas", "machine", "image", "delivery"]
+
+
+def fail(message):
+    print(f"pv: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def load_targets():
+    targets = {}
+    for path in sorted(TARGETS_DIR.glob("*.json")):
+        with path.open() as f:
+            data = json.load(f)
+        missing = [key for key in REQUIRED_TARGET_KEYS if key not in data]
+        if missing:
+            fail(f"{path.relative_to(REPO)} is missing: {', '.join(missing)}")
+        data["name"] = path.stem
+        targets[path.stem] = data
+    return targets
+
+
+def get_target(name):
+    targets = load_targets()
+    if name not in targets:
+        fail(f"unknown target '{name}'. Known targets: {', '.join(targets) or 'none'}")
+    return targets[name]
+
+
+def run(command, log=None):
+    """Run a command from the repo root. Output goes to the terminal and, if given, a log file."""
+    line = "$ " + " ".join(str(part) for part in command)
+    print(line, flush=True)
+    if log is None:
+        return subprocess.run(command, cwd=REPO).returncode
+
+    log.write(line + "\n")
+    process = subprocess.Popen(command, cwd=REPO, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, text=True, errors="replace")
+    for output in process.stdout:
+        sys.stdout.write(output)
+        log.write(output)
+    log.flush()
+    return process.wait()
+
+
+def desktop_commands(preset):
+    commands = [
+        ["cmake", "--preset", preset],
+        ["cmake", "--build", "--preset", preset],
+    ]
+    if preset in TESTED_PRESETS:
+        commands.append(["ctest", "--preset", preset])
+    return commands
+
+
+def image_commands(target):
+    return [[str(KAS), "build", target["kas"]]]
+
+
+def check_desktop_environment():
+    missing = [name for name in ("QT_ROOT_DIR", "OPENCV_ROOT_DIR") if not os.environ.get(name)]
+    if missing:
+        fail(f"{', '.join(missing)} not set; the CMake presets need them to find Qt and OpenCV")
+
+
+def run_step(commands, log=None):
+    for command in commands:
+        if run(command, log) != 0:
+            return False
+    return True
+
+
+def format_duration(seconds):
+    minutes, seconds = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m" if hours else f"{minutes}m{seconds:02d}s"
+
+
+def build_all():
+    check_desktop_environment()
+    steps = [(f"desktop {preset}", desktop_commands(preset)) for preset in DESKTOP_PRESETS]
+    steps += [(f"image {name}", image_commands(target)) for name, target in load_targets().items()]
+
+    log_dir = LOG_ROOT / datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir.mkdir(parents=True)
+    print(f"Logs: {log_dir.relative_to(REPO)}")
+
+    results = []
+    for name, commands in steps:
+        print(f"\n=== {name} ===", flush=True)
+        log_path = log_dir / (name.replace(" ", "-") + ".log")
+        start = time.monotonic()
+        with log_path.open("w") as log:
+            ok = run_step(commands, log)
+        results.append((name, ok, time.monotonic() - start, log_path))
+
+    summary = ["", "=== Summary ==="]
+    for name, ok, seconds, log_path in results:
+        status = "ok    " if ok else "FAILED"
+        summary.append(f"{status}  {name:<24} {format_duration(seconds):>8}  {log_path.relative_to(REPO)}")
+    text = "\n".join(summary)
+    print(text)
+    (log_dir / "summary.txt").write_text(text.strip() + "\n")
+
+    return 0 if all(ok for _, ok, _, _ in results) else 1
+
+
+def human_size(size):
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.1f} {unit}" if unit != "B" else f"{size} B"
+        size /= 1024
+
+
+def show_size(target):
+    image_dir = DEPLOY_DIR / target["machine"]
+    prefix = f"{target['image']}-{target['machine']}.rootfs."
+    files = sorted(image_dir.glob(prefix + "*"))
+    if not files:
+        fail(f"no image found in {image_dir.relative_to(REPO)}; build it with: scripts/pv build image {target['name']}")
+
+    print(f"{target['name']} ({target['machine']})")
+    for path in files:
+        print(f"  {human_size(path.resolve().stat().st_size):>10}  {path.name}")
+
+    manifest = image_dir / (prefix + "manifest")
+    if manifest.exists():
+        packages = [line for line in manifest.read_text().splitlines() if line.strip()]
+        print(f"  {len(packages)} packages installed (see {manifest.name})")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="pv", description="pi-vision build tool")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    commands.add_parser("targets", help="list image targets")
+
+    build = commands.add_parser("build", help="build desktop, an image, or everything")
+    build.add_argument("what", choices=["desktop", "image", "all"])
+    build.add_argument("target", nargs="?", help="image target (for 'build image')")
+    build.add_argument("--preset", default="debug", choices=DESKTOP_PRESETS,
+                       help="CMake preset for 'build desktop' (default: debug)")
+
+    size = commands.add_parser("size", help="show image sizes for a target")
+    size.add_argument("target")
+
+    args = parser.parse_args()
+
+    if args.command == "targets":
+        for name, target in load_targets().items():
+            print(f"{name:<14} {target['description']}  [{target['kas']}, delivered by {target['delivery']}]")
+        return 0
+
+    if args.command == "size":
+        return show_size(get_target(args.target))
+
+    if args.what == "desktop":
+        check_desktop_environment()
+        return 0 if run_step(desktop_commands(args.preset)) else 1
+    if args.what == "image":
+        if not args.target:
+            fail("build image needs a target; see: scripts/pv targets")
+        return 0 if run_step(image_commands(get_target(args.target))) else 1
+    return build_all()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

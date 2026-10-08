@@ -16,6 +16,9 @@ IMAGE_FEATURES += "ssh-server-dropbear allow-empty-password empty-root-password 
 # that needs modules adds them with a machine override, for example:
 #   PIVISION_KERNEL_MODULES:qemux86-64 = "kernel-module-foo"
 PIVISION_KERNEL_MODULES ?= ""
+# Pi 3: UVC for generic USB webcams and hid-multitouch for USB touchscreens.
+# Everything else this device uses (VC4, Ethernet, USB HID) is built into the kernel.
+PIVISION_KERNEL_MODULES:raspberrypi3-64 = "kernel-module-uvcvideo kernel-module-hid-multitouch"
 
 IMAGE_INSTALL += " \
     ${PIVISION_KERNEL_MODULES} \

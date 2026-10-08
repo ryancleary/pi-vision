@@ -28,3 +28,4 @@ assets/media/*
 .idea/
 *.swp
 .DS_Store
+build-logs/

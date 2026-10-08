@@ -1,0 +1,7 @@
+{
+  "description": "QEMU x86-64, for development without hardware",
+  "kas": "kas/qemux86-64.yml",
+  "machine": "qemux86-64",
+  "image": "pivision-image",
+  "delivery": "qemu"
+}
