@@ -8,6 +8,15 @@
 
 namespace pivision::pipeline {
 
+namespace {
+
+    QString nameOf(const capture::FrameSource &source)
+    {
+        return QString::fromStdString(source.name());
+    }
+
+} // namespace
+
 FrameProducer::FrameProducer(
     std::unique_ptr<capture::FrameSource> source, LatestFrameBuffer &buffer)
     : m_source(std::move(source))
@@ -19,9 +28,40 @@ FrameProducer::~FrameProducer() = default;
 
 void FrameProducer::start()
 {
+    m_running = true;
+    openSource();
+}
+
+void FrameProducer::stop()
+{
+    m_running = false;
+    if (m_timer)
+        m_timer->stop();
+    if (m_source)
+        m_source->close();
+}
+
+void FrameProducer::replaceSource(std::unique_ptr<capture::FrameSource> source)
+{
+    if (m_timer)
+        m_timer->stop();
+    if (m_source)
+        m_source->close();
+
+    m_source = std::move(source);
+    m_buffer.take(); // drop any frame from the old source
+
+    if (m_running)
+        openSource();
+}
+
+void FrameProducer::openSource()
+{
+    if (!m_source)
+        return;
+
     if (!m_source->open()) {
-        emit failed(
-            QStringLiteral("Could not open %1").arg(QString::fromStdString(m_source->name())));
+        emit failed(QStringLiteral("Could not open %1").arg(nameOf(*m_source)));
         return;
     }
 
@@ -31,23 +71,20 @@ void FrameProducer::start()
         m_timer->setTimerType(Qt::PreciseTimer);
         connect(m_timer, &QTimer::timeout, this, &FrameProducer::tick);
     }
+
+    // The name may only be known once open, e.g. which camera auto picked.
+    emit opened(nameOf(*m_source));
     const double fps = m_source->nominalFps() > 0.0 ? m_source->nominalFps() : 30.0;
     m_timer->start(qRound(1000.0 / fps));
-}
-
-void FrameProducer::stop()
-{
-    if (m_timer)
-        m_timer->stop();
-    m_source->close();
 }
 
 void FrameProducer::tick()
 {
     if (!m_source->read(m_frame) || m_frame.image.type() != CV_8UC3) {
-        stop();
-        emit failed(QStringLiteral("%1 stopped producing frames")
-                .arg(QString::fromStdString(m_source->name())));
+        // Stop reading but stay running, so a replacement source opens normally.
+        m_timer->stop();
+        m_source->close();
+        emit failed(QStringLiteral("%1 stopped producing frames").arg(nameOf(*m_source)));
         return;
     }
 

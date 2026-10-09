@@ -8,8 +8,10 @@ qt_add_qml_module(pivision_display
         include/pivision/display/Registration.h
         private/FrameView.h
         private/PipelineForeign.h
+        private/SourceSelector.h
         src/FrameView.cpp
         src/Registration.cpp
+        src/SourceSelector.cpp
 )
 
 target_include_directories(pivision_display
@@ -18,6 +20,6 @@ target_include_directories(pivision_display
 )
 
 target_link_libraries(pivision_display
-    PUBLIC pivision::pipeline Qt6::Quick
+    PUBLIC pivision::capture pivision::pipeline Qt6::Quick
 )
 

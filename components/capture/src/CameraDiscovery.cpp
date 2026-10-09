@@ -30,32 +30,33 @@ namespace {
         return std::atoi(digits.c_str());
     }
 
-    // Asks the driver what the node is. Returns false for anything that isn't a
-    // V4L2 video capture node (metadata nodes, output devices, plain files).
-    bool queryCapture(const std::string &path, std::string &name)
-    {
-        const int fd = ::open(path.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
-        if (fd < 0)
-            return false;
-
-        v4l2_capability caps {};
-        const bool queried = ::ioctl(fd, VIDIOC_QUERYCAP, &caps) == 0;
-        ::close(fd);
-        if (!queried)
-            return false;
-
-        // device_caps describes this node; capabilities describes the whole device.
-        const std::uint32_t nodeCaps
-            = (caps.capabilities & V4L2_CAP_DEVICE_CAPS) ? caps.device_caps : caps.capabilities;
-        if (!(nodeCaps & V4L2_CAP_VIDEO_CAPTURE))
-            return false;
-
-        name.assign(reinterpret_cast<const char *>(caps.card),
-            strnlen(reinterpret_cast<const char *>(caps.card), sizeof(caps.card)));
-        return true;
-    }
-
 } // namespace
+
+std::optional<CameraInfo> describeCamera(const std::string &device)
+{
+    const int fd = ::open(device.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
+    if (fd < 0)
+        return std::nullopt;
+
+    v4l2_capability caps {};
+    const bool queried = ::ioctl(fd, VIDIOC_QUERYCAP, &caps) == 0;
+    ::close(fd);
+    if (!queried)
+        return std::nullopt;
+
+    // device_caps describes this node; capabilities describes the whole device.
+    // Metadata nodes, output devices and plain files fail one of these checks.
+    const std::uint32_t nodeCaps
+        = (caps.capabilities & V4L2_CAP_DEVICE_CAPS) ? caps.device_caps : caps.capabilities;
+    if (!(nodeCaps & V4L2_CAP_VIDEO_CAPTURE))
+        return std::nullopt;
+
+    CameraInfo info;
+    info.device = device;
+    info.name.assign(reinterpret_cast<const char *>(caps.card),
+        strnlen(reinterpret_cast<const char *>(caps.card), sizeof(caps.card)));
+    return info;
+}
 
 std::vector<CameraInfo> findCameras(const std::string &directory)
 {
@@ -67,10 +68,8 @@ std::vector<CameraInfo> findCameras(const std::string &directory)
         if (number < 0)
             continue;
 
-        CameraInfo info;
-        info.device = entry.path().string();
-        if (queryCapture(info.device, info.name))
-            found.emplace_back(number, std::move(info));
+        if (auto info = describeCamera(entry.path().string()))
+            found.emplace_back(number, std::move(*info));
     }
 
     // video2 before video10: sort by number, not by name.

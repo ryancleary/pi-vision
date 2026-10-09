@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
 
     pivision::pipeline::Pipeline pipeline(std::move(source));
     pivision::display::exposePipeline(&pipeline);
+    pivision::display::exposeSourceSelector(&pipeline, camera, pattern);
 
     QQmlApplicationEngine engine;
     QObject::connect(
