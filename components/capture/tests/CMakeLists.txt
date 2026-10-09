@@ -1,4 +1,10 @@
-if(PIVISION_BUILD_TESTS)
-    add_subdirectory(tests)
-endif()
-
+pivision_add_tests(capture
+    SOURCES
+        AutoSourceGTest.cpp
+        CameraDiscoveryGTest.cpp
+        CameraSourceGTest.cpp
+        TestPatternSourceGTest.cpp
+        VideoSourceGTest.cpp
+    LIBRARIES
+        opencv_videoio
+)

@@ -35,5 +35,6 @@ protected:
     FrameSource() = default;
 };
 
-}
-#endif // namespace pivision::capture
+} // namespace pivision::capture
+
+#endif // PIVISION_CAPTURE_FRAMESOURCE_H
