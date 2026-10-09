@@ -42,4 +42,7 @@ QtObject {
     readonly property int captionPadding: 4
     readonly property real captionOpacity: 0.7
     readonly property int transitionMs: 225
+
+    // Messages
+    readonly property int toastMs: 3000
 }

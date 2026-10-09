@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include <QJSEngine>
+#include <QJsonArray>
 #include <QVariantMap>
 
 #include <pivision/logging/Logging.h>
@@ -82,6 +83,43 @@ QStringList MetricsMonitor::throttleSinceBoot() const
 {
     return throttleFlags_ ? toQStringList(system::pastThrottleConditions(*throttleFlags_))
                           : QStringList();
+}
+
+QJsonObject MetricsMonitor::toJson()
+{
+    refresh();
+
+    QJsonArray stageTimes;
+    for (const processing::StageTiming &timing : frames_.stages) {
+        stageTimes.append(QJsonObject {
+            { QStringLiteral("id"), QString::fromStdString(timing.id) },
+            { QStringLiteral("ms"), timing.milliseconds },
+        });
+    }
+
+    QJsonObject json {
+        { QStringLiteral("captureFps"), frames_.captureFps },
+        { QStringLiteral("displayFps"), frames_.displayFps },
+        { QStringLiteral("latencyMs"), frames_.latencyMs },
+        { QStringLiteral("stagesMs"), frames_.stagesMs },
+        { QStringLiteral("stages"), stageTimes },
+        { QStringLiteral("droppedBeforeProcessingPerSecond"), frames_.droppedBeforeProcessingPerSecond },
+        { QStringLiteral("droppedBeforeDisplayPerSecond"), frames_.droppedBeforeDisplayPerSecond },
+        { QStringLiteral("cpuPercent"), cpuPercent_ },
+        { QStringLiteral("cpuWindowSeconds"), cpu_.lastInterval().count() },
+        // null where there's no sensor or it isn't a Pi
+        { QStringLiteral("temperatureC"), temperature_ ? QJsonValue(*temperature_) : QJsonValue() },
+    };
+    if (throttleFlags_) {
+        json.insert(QStringLiteral("throttle"), QJsonObject {
+            { QStringLiteral("flags"), QStringLiteral("0x%1").arg(*throttleFlags_, 0, 16) },
+            { QStringLiteral("now"), QJsonArray::fromStringList(throttleNow()) },
+            { QStringLiteral("sinceBoot"), QJsonArray::fromStringList(throttleSinceBoot()) },
+        });
+    } else {
+        json.insert(QStringLiteral("throttle"), QJsonValue());
+    }
+    return json;
 }
 
 void MetricsMonitor::refresh()

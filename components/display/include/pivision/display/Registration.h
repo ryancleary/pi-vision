@@ -2,6 +2,7 @@
 #define PIVISION_DISPLAY_REGISTRATION_H
 
 #include <QList>
+#include <QString>
 
 #include <pivision/capture/SourceFactory.h>
 #include <pivision/pipeline/StageConfig.h>
@@ -28,6 +29,14 @@ void exposeSourceSelector(pivision::pipeline::Pipeline *pipeline,
 // changes to `pipeline`. Call before loading any QML; owned by `pipeline`.
 void exposeProcessingControl(pivision::pipeline::Pipeline *pipeline,
     const QList<pivision::pipeline::StageConfig> &stages);
+
+// Makes the Capture button's backend available to QML as the singleton
+// `Captures`. Captures go into numbered folders under `directory`; only the
+// newest `keep` are kept (0 keeps all). `appVersion` is recorded in each.
+// Call after exposeProcessingControl() and exposeMetricsMonitor(), whose
+// current values it records; owned by `pipeline`.
+void exposeCaptures(pivision::pipeline::Pipeline *pipeline, const QString &directory, int keep,
+    const QString &appVersion);
 
 // Makes the metrics panel's backend available to QML as the singleton
 // `MetricsMonitor`, reading `pipeline` and naming stages from `stages`.

@@ -51,6 +51,7 @@ public:
     void setStageEnabled(const QString &id, bool enabled);
     void setStageParameter(const QString &id, const QString &name, double value);
     void setProcessSize(const QSize &size);
+    QSize processSize() const { return processSize_; }
 
     // The newest frame; empty before the first one and after a switch or failure.
     // Readers share it (QImage is implicitly shared), so any number of views can.
@@ -97,6 +98,7 @@ private:
     std::optional<DisplayFrame> latest_;
     FrameMetrics metrics_;
     std::uint64_t generation_ = 0;
+    QSize processSize_;
     QString sourceName_;
     QString errorString_;
 };

@@ -45,9 +45,15 @@ Ways to run it:
   fps, capture-to-UI latency, per-stage times, dropped frames/s, process CPU,
   SoC temp, Pi throttle flags. Averaged over 1 s (FrameMetrics in pipeline),
   refreshed 4x/s, only while the tab is visible.
-- Captures: a button saves metrics + settings as JSON plus raw/processed PNGs.
-  Desktop: logs/captures/. Pi: /var/crash/captures (crash partition), newest 10
-  kept. `pv captures` pulls them; the app can also copy them to a USB stick.
+- Captures: a button saves metrics + settings as JSON plus raw/processed PNGs,
+  in numbered folders (no RTC on the Pi, so the number gives the order).
+  Desktop: logs/captures/, all kept. Pi: /var/crash/captures (crash partition),
+  newest 10 kept; --capture-dir / --capture-keep override. Written to a
+  .partial- folder and renamed, so a copy never sees half a capture.
+  `pv captures TARGET` copies new ones into logs/TARGET/captures/ (--card for a
+  mounted SD card); the app can also copy them to a USB stick.
+- Crash partition budget (64 MB): 5 dumps x 8 MB journal max = 40 MB, plus 10
+  captures at roughly 1 MB each.
 - Headless mode: process a file from the command line and write JSON. Used for tests and CI.
 - Process at 320x240 on the Pi.
 
@@ -226,7 +232,7 @@ No AGPL models (rules out Ultralytics YOLO).
 - [x] Stage interface and basic stages, with tests; pipeline delivers raw + processed
 - [x] Compare UI: side by side, overlay with opacity, picture-in-picture
 - [x] Metrics panel
-- [ ] Capture button, storage on the crash partition, pv captures
+- [x] Capture button, storage on the crash partition, pv captures
 - [ ] Copy captures to USB from the app
 - [ ] Detector thread and QML overlay
 - [ ] Headless mode

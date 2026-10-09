@@ -74,6 +74,7 @@ double CpuUsage::sample()
     const std::chrono::duration<double> cpuElapsed = cpu - lastCpu_;
     lastWall_ = wall;
     lastCpu_ = cpu;
+    lastInterval_ = wallElapsed;
     if (wallElapsed.count() <= 0.0)
         return 0.0;
     return 100.0 * cpuElapsed.count() / wallElapsed.count();

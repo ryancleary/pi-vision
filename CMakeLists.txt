@@ -9,6 +9,9 @@ option(PIVISION_BUILD_TESTS "Build unit tests" ON)
 # Desktop builds set this (CMakePresets.json) so each run's log lands in the repo.
 # Device builds leave it empty: the app logs to the journal only.
 set(PIVISION_DEV_LOG_FILE "" CACHE STRING "Default log file for development builds")
+# Same idea for captures. Desktop: a folder in the repo, all kept. Device: the
+# crash partition, newest 10 kept (see app/src/main.cpp).
+set(PIVISION_DEV_CAPTURE_DIR "" CACHE STRING "Default capture folder for development builds")
 
 # Pinned to Qt 6.8 to match the meta-qt6 branch used for the Pi image.
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick

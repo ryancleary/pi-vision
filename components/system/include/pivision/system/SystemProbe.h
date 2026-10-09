@@ -22,9 +22,13 @@ public:
     // Usage since the previous call (or since construction).
     double sample();
 
+    // How long the last sample() covered.
+    std::chrono::duration<double> lastInterval() const { return lastInterval_; }
+
 private:
     std::chrono::steady_clock::time_point lastWall_;
     std::chrono::microseconds lastCpu_;
+    std::chrono::duration<double> lastInterval_ {};
 };
 
 // SoC temperature from the first thermal zone; empty where there is none

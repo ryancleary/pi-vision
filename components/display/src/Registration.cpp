@@ -1,5 +1,6 @@
 #include <pivision/display/Registration.h>
 
+#include "CaptureControl.h"
 #include "MetricsMonitor.h"
 #include "PipelineForeign.h"
 #include "ProcessingControl.h"
@@ -29,6 +30,15 @@ void exposeMetricsMonitor(pivision::pipeline::Pipeline *pipeline,
     const QList<pivision::pipeline::StageConfig> &stages)
 {
     MetricsMonitor::instance_ = new MetricsMonitor(pipeline, stages, pipeline);
+}
+
+void exposeCaptures(pivision::pipeline::Pipeline *pipeline, const QString &directory, int keep,
+    const QString &appVersion)
+{
+    Q_ASSERT(MetricsMonitor::instance_ && ProcessingControl::instance_);
+    CaptureControl::instance_ = new CaptureControl(pipeline, MetricsMonitor::instance_,
+        ProcessingControl::instance_, pivision::snapshot::SnapshotStore(directory, keep), appVersion,
+        pipeline);
 }
 
 } // namespace pivision::display

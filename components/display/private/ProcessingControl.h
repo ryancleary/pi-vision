@@ -34,6 +34,8 @@ public:
     inline static ProcessingControl *instance_ = nullptr;
 
     QVariantList stages() const;
+    // Current settings, including changes made in the UI.
+    const QList<pipeline::StageConfig> &stageConfigs() const { return stages_; }
 
     Q_INVOKABLE void setEnabled(const QString &id, bool enabled);
     Q_INVOKABLE void setParameter(const QString &id, const QString &name, double value);
