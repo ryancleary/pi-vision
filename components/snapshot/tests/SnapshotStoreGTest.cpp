@@ -11,24 +11,23 @@
 
 namespace pivision::snapshot {
 
-namespace {
-
-    QImage solidImage(int width, int height, Qt::GlobalColor color)
+class SnapshotStoreTest : public ::testing::Test {
+protected:
+    static QImage solidImage(int width, int height, Qt::GlobalColor color)
     {
         QImage image(width, height, QImage::Format_RGB888);
         image.fill(color);
         return image;
     }
 
-    SaveResult saveOne(const SnapshotStore &store)
+    static SaveResult saveOne(const SnapshotStore &store)
     {
         return store.save(solidImage(64, 48, Qt::red), solidImage(32, 24, Qt::gray),
             QJsonObject { { QStringLiteral("source"), QStringLiteral("Test pattern") } });
     }
+};
 
-} // namespace
-
-TEST(SnapshotStoreGTest, SavesImagesAndInfo)
+TEST_F(SnapshotStoreTest, SavesImagesAndInfo)
 {
     QTemporaryDir root;
     const SnapshotStore store(root.filePath(QStringLiteral("captures")), 0);
@@ -49,7 +48,7 @@ TEST(SnapshotStoreGTest, SavesImagesAndInfo)
     EXPECT_FALSE(info.value(QStringLiteral("time")).toString().isEmpty());
 }
 
-TEST(SnapshotStoreGTest, NumbersFollowTheNewestEvenAfterPruning)
+TEST_F(SnapshotStoreTest, NumbersFollowTheNewestEvenAfterPruning)
 {
     QTemporaryDir root;
     const SnapshotStore store(root.path(), 2);
@@ -62,7 +61,7 @@ TEST(SnapshotStoreGTest, NumbersFollowTheNewestEvenAfterPruning)
     EXPECT_TRUE(names.at(1).startsWith(QStringLiteral("000004_")));
 }
 
-TEST(SnapshotStoreGTest, KeepZeroKeepsEverything)
+TEST_F(SnapshotStoreTest, KeepZeroKeepsEverything)
 {
     QTemporaryDir root;
     const SnapshotStore store(root.path(), 0);
@@ -71,7 +70,7 @@ TEST(SnapshotStoreGTest, KeepZeroKeepsEverything)
     EXPECT_EQ(store.list().size(), 12);
 }
 
-TEST(SnapshotStoreGTest, OtherFilesAreLeftAlone)
+TEST_F(SnapshotStoreTest, OtherFilesAreLeftAlone)
 {
     // On the Pi, captures share the crash partition with crash dumps.
     QTemporaryDir root;
@@ -86,7 +85,7 @@ TEST(SnapshotStoreGTest, OtherFilesAreLeftAlone)
     EXPECT_EQ(store.list().size(), 1);
 }
 
-TEST(SnapshotStoreGTest, UnwritableDirectoryReportsAnError)
+TEST_F(SnapshotStoreTest, UnwritableDirectoryReportsAnError)
 {
     const SnapshotStore store(QStringLiteral("/proc/pivision-captures"), 0);
     const SaveResult result = saveOne(store);

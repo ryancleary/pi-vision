@@ -1,6 +1,7 @@
 #ifndef PIVISION_DISPLAY_METRICSMONITOR_H
 #define PIVISION_DISPLAY_METRICSMONITOR_H
 
+#include <chrono>
 #include <cstdint>
 #include <optional>
 
@@ -89,6 +90,9 @@ signals:
     void updated();
 
 private:
+    // Four refreshes a second: readable, and cheap for QML on the Pi.
+    static constexpr std::chrono::milliseconds kRefreshInterval { 250 };
+
     void refresh();
 
     QPointer<pipeline::Pipeline> pipeline_;

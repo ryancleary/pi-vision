@@ -9,19 +9,18 @@
 
 namespace pivision::logging {
 
-namespace {
+class LoggingTest : public ::testing::Test {
+protected:
+    static QString readAll(const QString &path)
+    {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+            return {};
+        return QString::fromUtf8(file.readAll());
+    }
+};
 
-QString readAll(const QString &path)
-{
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly))
-        return {};
-    return QString::fromUtf8(file.readAll());
-}
-
-} // namespace
-
-TEST(Logging, WritesLevelCategoryAndMessageToTheLogFile)
+TEST_F(LoggingTest, WritesLevelCategoryAndMessageToTheLogFile)
 {
     QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("nested/pivision.log"));
@@ -36,7 +35,7 @@ TEST(Logging, WritesLevelCategoryAndMessageToTheLogFile)
         << log.toStdString();
 }
 
-TEST(Logging, EachInstallStartsAFreshFile)
+TEST_F(LoggingTest, EachInstallStartsAFreshFile)
 {
     QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("pivision.log"));
@@ -51,7 +50,7 @@ TEST(Logging, EachInstallStartsAFreshFile)
     EXPECT_TRUE(log.contains(QStringLiteral("second session")));
 }
 
-TEST(Logging, DebugIsOffUntilVerbose)
+TEST_F(LoggingTest, DebugIsOffUntilVerbose)
 {
     QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("pivision.log"));
@@ -67,7 +66,7 @@ TEST(Logging, DebugIsOffUntilVerbose)
     QLoggingCategory::setFilterRules({});
 }
 
-TEST(Logging, UnwritableFileFailsButLoggingContinues)
+TEST_F(LoggingTest, UnwritableFileFailsButLoggingContinues)
 {
     EXPECT_FALSE(install(QStringLiteral("/proc/pivision-cannot-write/pivision.log")));
     qCInfo(lcApp) << "still logs to stderr";

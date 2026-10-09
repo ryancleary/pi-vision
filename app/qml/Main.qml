@@ -11,6 +11,14 @@ ApplicationWindow {
     height: 640
     visible: true
     title: "pi-vision"
+
+    // The compare-mode buttons in the toolbar, left to right. Reorder entries
+    // to reorder the buttons; leave one out to hide that mode.
+    readonly property var modeButtonOrder: [
+        CompareView.ViewMode.SideBySide,
+        CompareView.ViewMode.Overlay,
+        CompareView.ViewMode.PictureInPicture
+    ]
     color: Theme.background
 
     // Dark theme for every Basic-style control.
@@ -90,18 +98,14 @@ ApplicationWindow {
                 spacing: Theme.buttonGap
 
                 Repeater {
-                    model: [
-                        { label: qsTr("Side by side"), mode: CompareView.ViewMode.SideBySide },
-                        { label: qsTr("Overlay"), mode: CompareView.ViewMode.Overlay },
-                        { label: qsTr("PiP"), mode: CompareView.ViewMode.PictureInPicture }
-                    ]
+                    model: root.modeButtonOrder
 
                     delegate: PanelButton {
-                        required property var modelData
+                        required property int modelData
 
-                        label: modelData.label
-                        active: compareView.mode === modelData.mode
-                        onClicked: compareView.mode = modelData.mode
+                        label: compareView.modeLabel(modelData)
+                        active: compareView.mode === modelData
+                        onClicked: compareView.mode = modelData
                     }
                 }
             }

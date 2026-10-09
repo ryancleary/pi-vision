@@ -6,20 +6,19 @@
 
 namespace pivision::capture {
 
-namespace {
+class TestPatternSourceTest : public ::testing::Test {
+protected:
+    static TestPatternConfig smallConfig()
+    {
+        TestPatternConfig config;
+        config.width = 320;
+        config.height = 240;
+        config.fps = 30.0;
+        return config;
+    }
+};
 
-TestPatternConfig smallConfig()
-{
-    TestPatternConfig config;
-    config.width = 320;
-    config.height = 240;
-    config.fps = 30.0;
-    return config;
-}
-
-} // namespace
-
-TEST(TestPatternSource, ProducesFramesOfConfiguredSizeAndType)
+TEST_F(TestPatternSourceTest, ProducesFramesOfConfiguredSizeAndType)
 {
     auto source = makeTestPatternSource(smallConfig());
     ASSERT_TRUE(source->open());
@@ -31,7 +30,7 @@ TEST(TestPatternSource, ProducesFramesOfConfiguredSizeAndType)
     EXPECT_EQ(frame.image.type(), CV_8UC3);
 }
 
-TEST(TestPatternSource, IndexStartsAtZeroAndIncrements)
+TEST_F(TestPatternSourceTest, IndexStartsAtZeroAndIncrements)
 {
     auto source = makeTestPatternSource(smallConfig());
     ASSERT_TRUE(source->open());
@@ -43,7 +42,7 @@ TEST(TestPatternSource, IndexStartsAtZeroAndIncrements)
     }
 }
 
-TEST(TestPatternSource, ConsecutiveFramesDiffer)
+TEST_F(TestPatternSourceTest, ConsecutiveFramesDiffer)
 {
     auto source = makeTestPatternSource(smallConfig());
     ASSERT_TRUE(source->open());
@@ -55,7 +54,7 @@ TEST(TestPatternSource, ConsecutiveFramesDiffer)
     EXPECT_GT(cv::norm(first.image, second.image, cv::NORM_L1), 0.0);
 }
 
-TEST(TestPatternSource, IsDeterministic)
+TEST_F(TestPatternSourceTest, IsDeterministic)
 {
     auto a = makeTestPatternSource(smallConfig());
     auto b = makeTestPatternSource(smallConfig());
@@ -71,21 +70,21 @@ TEST(TestPatternSource, IsDeterministic)
     EXPECT_EQ(cv::norm(frameA.image, frameB.image, cv::NORM_L1), 0.0);
 }
 
-TEST(TestPatternSource, ReadFailsBeforeOpen)
+TEST_F(TestPatternSourceTest, ReadFailsBeforeOpen)
 {
     auto source = makeTestPatternSource(smallConfig());
     Frame frame;
     EXPECT_FALSE(source->read(frame));
 }
 
-TEST(TestPatternSource, OpenFailsForInvalidSize)
+TEST_F(TestPatternSourceTest, OpenFailsForInvalidSize)
 {
     TestPatternConfig config = smallConfig();
     config.width = 0;
     EXPECT_FALSE(makeTestPatternSource(config)->open());
 }
 
-TEST(TestPatternSource, OpenFailsForInvalidFrameRate)
+TEST_F(TestPatternSourceTest, OpenFailsForInvalidFrameRate)
 {
     TestPatternConfig config = smallConfig();
     config.fps = 0.0;

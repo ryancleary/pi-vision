@@ -15,14 +15,6 @@
 
 namespace pivision::display {
 
-namespace {
-
-    // Mounting happens outside the app, so check for it once a second;
-    // reading the mount table that often costs next to nothing.
-    constexpr std::chrono::seconds kPollInterval(1);
-
-} // namespace
-
 UsbControl::UsbControl(
     QString mountRoot, QString captureDirectory, QString crashDirectory, QObject *parent)
     : QObject(parent)

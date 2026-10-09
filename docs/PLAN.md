@@ -34,7 +34,7 @@ Ways to run it:
   main.cpp owns it and calls exposePipeline() before loading QML.
 - Layering: capture (no Qt) -> pipeline (Qt, no QML) -> display (Qt Quick) -> app.
   system (no Qt) reads CPU use, temperature and Pi throttle flags; display uses it.
-- Compare UI (overlay by default): raw and processed frames shown side by side, as an overlay with an
+- Compare UI (overlay by default; button order is modeButtonOrder in Main.qml): raw and processed frames shown side by side, as an overlay with an
   opacity slider, or picture-in-picture (processed full, raw inset). One mode enum
   drives QML states/transitions. Design adapted from an earlier QML project of mine,
   rebuilt on two FrameViews instead of Qt Multimedia.
@@ -122,6 +122,14 @@ Checked by .clang-tidy (clangd shows violations in the editor).
 - Calculations: prefer a library call (QSize::scaled, cv::resize,
   std::chrono::round) or a small function whose name says what it does, with a
   comment on why. No unexplained arithmetic.
+- No anonymous namespaces. Helpers live in pivision::<component>:
+  private/Utilities.h for ones only that component uses, the utils component
+  (pivision::utils: Images.h, Strings.h, Files.h) for ones several use. The app
+  has src/Utilities.h in pivision::app.
+- Constants that belong to a class are static constexpr members in its header.
+- Test helpers are members of a fixture class (class FooTest : public
+  ::testing::Test) used with TEST_F; helpers shared by several test files go
+  in testsupport.
 
 ## Hardware
 

@@ -10,28 +10,27 @@
 
 namespace pivision::capture {
 
-namespace {
+class VideoSourceTest : public ::testing::Test {
+protected:
+    static constexpr int kWidth = 160;
+    static constexpr int kHeight = 120;
+    static constexpr int kFrameCount = 5;
 
-constexpr int kWidth = 160;
-constexpr int kHeight = 120;
-constexpr int kFrameCount = 5;
+    // Writes a short MJPEG AVI with OpenCV's built-in encoder, so the test needs
+    // no FFmpeg or GStreamer and runs the same on the desktop, in CI and in Yocto.
+    static std::string writeTestVideo()
+    {
+        const auto path = std::filesystem::temp_directory_path() / "pivision-test-video.avi";
+        cv::VideoWriter writer(path.string(), cv::CAP_OPENCV_MJPEG,
+            cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(kWidth, kHeight));
+        EXPECT_TRUE(writer.isOpened());
+        for (int i = 0; i < kFrameCount; ++i)
+            writer.write(cv::Mat(kHeight, kWidth, CV_8UC3, cv::Scalar(i * 40, 80, 160)));
+        return path.string();
+    }
+};
 
-// Writes a short MJPEG AVI with OpenCV's built-in encoder, so the test needs
-// no FFmpeg or GStreamer and runs the same on the desktop, in CI and in Yocto.
-std::string writeTestVideo()
-{
-    const auto path = std::filesystem::temp_directory_path() / "pivision-test-video.avi";
-    cv::VideoWriter writer(path.string(), cv::CAP_OPENCV_MJPEG,
-        cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(kWidth, kHeight));
-    EXPECT_TRUE(writer.isOpened());
-    for (int i = 0; i < kFrameCount; ++i)
-        writer.write(cv::Mat(kHeight, kWidth, CV_8UC3, cv::Scalar(i * 40, 80, 160)));
-    return path.string();
-}
-
-} // namespace
-
-TEST(VideoSource, ReadsFramesOfTheFileSize)
+TEST_F(VideoSourceTest, ReadsFramesOfTheFileSize)
 {
     auto source = makeVideoSource(writeTestVideo());
     ASSERT_TRUE(source->open());
@@ -44,7 +43,7 @@ TEST(VideoSource, ReadsFramesOfTheFileSize)
     EXPECT_DOUBLE_EQ(source->nominalFps(), 25.0);
 }
 
-TEST(VideoSource, LoopsAtEndOfFile)
+TEST_F(VideoSourceTest, LoopsAtEndOfFile)
 {
     auto source = makeVideoSource(writeTestVideo());
     ASSERT_TRUE(source->open());
@@ -55,13 +54,13 @@ TEST(VideoSource, LoopsAtEndOfFile)
     EXPECT_EQ(frame.index, static_cast<std::uint64_t>(kFrameCount * 2));
 }
 
-TEST(VideoSource, NameIsTheFileName)
+TEST_F(VideoSourceTest, NameIsTheFileName)
 {
     auto source = makeVideoSource("/some/dir/clip.mp4");
     EXPECT_EQ(source->name(), "clip.mp4");
 }
 
-TEST(VideoSource, OpenFailsForMissingFile)
+TEST_F(VideoSourceTest, OpenFailsForMissingFile)
 {
     auto source = makeVideoSource("/nonexistent/clip.avi");
     EXPECT_FALSE(source->open());

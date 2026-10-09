@@ -15,48 +15,45 @@
 namespace pivision::pipeline {
 
 // Tests here need a Qt event loop: signals cross threads.
-class PipelineTest : public testsupport::QtEventLoopFixture { };
-
-namespace {
-
-capture::TestPatternConfig patternOfWidth(int width)
-{
-    capture::TestPatternConfig config;
-    config.width = width;
-    config.height = width * 3 / 4;
-    config.fps = 60.0;
-    return config;
-}
-
-// Waits until a frame matching `accept` is the latest one.
-bool waitForFrame(Pipeline &pipeline, const std::function<bool(const DisplayFrame &)> &accept,
-    int timeoutMs = 3000)
-{
-    QSignalSpy available(&pipeline, &Pipeline::frameAvailable);
-    QElapsedTimer timer;
-    timer.start();
-    while (timer.elapsed() < timeoutMs) {
-        if (auto frame = pipeline.latestFrame(); frame && accept(*frame))
-            return true;
-        available.wait(100);
+class PipelineTest : public testsupport::QtEventLoopFixture {
+protected:
+    static capture::TestPatternConfig patternOfWidth(int width)
+    {
+        capture::TestPatternConfig config;
+        config.width = width;
+        config.height = width * 3 / 4;
+        config.fps = 60.0;
+        return config;
     }
-    return false;
-}
 
-bool waitForRawWidth(Pipeline &pipeline, int width)
-{
-    return waitForFrame(pipeline, [width](const DisplayFrame &f) { return f.raw.width() == width; });
-}
+    // Waits until a frame matching `accept` is the latest one.
+    static bool waitForFrame(Pipeline &pipeline, const std::function<bool(const DisplayFrame &)> &accept,
+        int timeoutMs = 3000)
+    {
+        QSignalSpy available(&pipeline, &Pipeline::frameAvailable);
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < timeoutMs) {
+            if (auto frame = pipeline.latestFrame(); frame && accept(*frame))
+                return true;
+            available.wait(100);
+        }
+        return false;
+    }
 
-StageConfig stage(const char *id, bool enabled)
-{
-    StageConfig config;
-    config.id = QString::fromLatin1(id);
-    config.enabled = enabled;
-    return config;
-}
+    static bool waitForRawWidth(Pipeline &pipeline, int width)
+    {
+        return waitForFrame(pipeline, [width](const DisplayFrame &f) { return f.raw.width() == width; });
+    }
 
-} // namespace
+    static StageConfig stage(const char *id, bool enabled)
+    {
+        StageConfig config;
+        config.id = QString::fromLatin1(id);
+        config.enabled = enabled;
+        return config;
+    }
+};
 
 TEST_F(PipelineTest, DeliversRawAndProcessedFramesFromTheSameCapture)
 {

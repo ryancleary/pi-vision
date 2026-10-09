@@ -43,6 +43,9 @@ signals:
     void sourcesChanged();
 
 private:
+    // The spec select() takes for the built-in test pattern.
+    static constexpr QLatin1String kTestPatternSpec { "test-pattern" };
+
     QPointer<pipeline::Pipeline> pipeline_;
     capture::CameraConfig camera_;
     capture::TestPatternConfig pattern_;
