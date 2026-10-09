@@ -21,6 +21,7 @@ PIVISION_KERNEL_MODULES ?= ""
 PIVISION_KERNEL_MODULES:raspberrypi3-64 = "kernel-module-uvcvideo kernel-module-hid-multitouch"
 
 IMAGE_INSTALL += " \
+    pivision \
     ${PIVISION_KERNEL_MODULES} \
     mesa-megadriver \
     qtbase \
