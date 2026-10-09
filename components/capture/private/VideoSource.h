@@ -19,14 +19,14 @@ public:
     bool read(Frame &out) override;
     void close() override;
     std::string name() const override;
-    double nominalFps() const override;
+    double nominalFps() const override { return fps_; }
 
 private:
-    std::string m_location;
-    cv::VideoCapture m_capture;
-    double m_fps = 30.0;
-    bool m_isFile = false;
-    std::uint64_t m_index = 0;
+    std::string location_;
+    cv::VideoCapture capture_;
+    double fps_ = 30.0;
+    bool isFile_ = false;
+    std::uint64_t index_ = 0;
 };
 
 } // namespace pivision::capture

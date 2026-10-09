@@ -4,6 +4,7 @@
 #include <optional>
 
 #include <QCommandLineParser>
+#include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QRegularExpression>
@@ -16,6 +17,7 @@
 #include <pivision/display/Registration.h>
 #include <pivision/logging/Logging.h>
 #include <pivision/pipeline/Pipeline.h>
+#include <pivision/pipeline/StageConfig.h>
 
 // PiVision.Display is a static QML module, so its plugin must be imported explicitly.
 Q_IMPORT_QML_PLUGIN(PiVision_DisplayPlugin)
@@ -42,8 +44,6 @@ std::optional<QSize> parseSize(const QString &text)
 
 int main(int argc, char *argv[])
 {
-    using namespace pivision::capture;
-
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("pivision"));
 
@@ -60,6 +60,9 @@ int main(int argc, char *argv[])
     const QCommandLineOption sizeOption(QStringLiteral("size"),
         QStringLiteral("Capture size to request, WIDTHxHEIGHT (default 640x480)."),
         QStringLiteral("size"), QStringLiteral("640x480"));
+    const QCommandLineOption processSizeOption(QStringLiteral("process-size"),
+        QStringLiteral("Largest size to process at, WIDTHxHEIGHT (default 320x240, as on the Pi)."),
+        QStringLiteral("size"), QStringLiteral("320x240"));
     const QCommandLineOption logFileOption(QStringLiteral("log-file"),
         QStringLiteral("Also write the log to <file>, replacing it each run.%1")
             .arg(QStringLiteral(PIVISION_DEV_LOG_FILE).isEmpty()
@@ -68,7 +71,8 @@ int main(int argc, char *argv[])
         QStringLiteral("file"), QStringLiteral(PIVISION_DEV_LOG_FILE));
     const QCommandLineOption verboseOption(QStringLiteral("verbose"),
         QStringLiteral("Include debug messages in the log."));
-    parser.addOptions({ cameraOption, patternOption, sizeOption, logFileOption, verboseOption });
+    parser.addOptions({ cameraOption, patternOption, sizeOption, processSizeOption, logFileOption,
+        verboseOption });
     parser.addPositionalArgument(QStringLiteral("source"),
         QStringLiteral("Video file, stream URL or /dev/video* device."), QStringLiteral("[source]"));
     parser.process(app);
@@ -85,38 +89,59 @@ int main(int argc, char *argv[])
     if (!size)
         return usageError(QStringLiteral("--size must look like 640x480"));
 
-    CameraConfig camera;
+    const auto processSize = parseSize(parser.value(processSizeOption));
+    if (!processSize)
+        return usageError(QStringLiteral("--process-size must look like 320x240"));
+
+    // The processing stages ship inside the app; a bad file is a build mistake.
+    QFile stageFile(QStringLiteral(":/pivision/config/stages.json"));
+    QString stageError;
+    const auto stages = stageFile.open(QIODevice::ReadOnly)
+        ? pivision::pipeline::parseStageConfig(stageFile.readAll(), &stageError)
+        : std::nullopt;
+    if (!stages) {
+        qCCritical(pivision::logging::lcApp) << "Invalid stages.json:" << stageError;
+        return EXIT_FAILURE;
+    }
+
+    pivision::capture::CameraConfig camera;
     camera.width = size->width();
     camera.height = size->height();
-    TestPatternConfig pattern;
+    pivision::capture::TestPatternConfig pattern;
     pattern.width = size->width();
     pattern.height = size->height();
 
     const QStringList positional = parser.positionalArguments();
-    const int chosen = int(parser.isSet(cameraOption)) + int(parser.isSet(patternOption))
-        + int(!positional.isEmpty());
+    // At most one of --camera, --test-pattern or a positional source may be given.
+    const int chosen = static_cast<int>(parser.isSet(cameraOption))
+        + static_cast<int>(parser.isSet(patternOption)) + static_cast<int>(!positional.isEmpty());
     if (chosen > 1 || positional.size() > 1)
         return usageError(QStringLiteral("give at most one source"));
 
-    std::unique_ptr<FrameSource> source;
+    std::unique_ptr<pivision::capture::FrameSource> source;
     if (parser.isSet(patternOption)) {
-        source = makeTestPatternSource(pattern);
+        source = pivision::capture::makeTestPatternSource(pattern);
     } else if (parser.isSet(cameraOption)) {
         QString device = parser.value(cameraOption);
         bool isNumber = false;
         const int number = device.toInt(&isNumber);
         if (isNumber)
             device = QStringLiteral("/dev/video%1").arg(number);
-        source = makeCameraSource(device.toStdString(), camera);
+        source = pivision::capture::makeCameraSource(device.toStdString(), camera);
     } else if (!positional.isEmpty()) {
-        source = makeSourceFromSpec(positional.first().toStdString(), camera);
+        source = pivision::capture::makeSourceFromSpec(positional.first().toStdString(), camera);
     } else {
-        source = makeAutoSource(camera, pattern);
+        source = pivision::capture::makeAutoSource(camera, pattern);
     }
 
     pivision::pipeline::Pipeline pipeline(std::move(source));
+    pipeline.setStages(*stages);
+    pipeline.setProcessSize(*processSize);
+    qCInfo(pivision::logging::lcApp, "Processing at up to %dx%d with %lld stage(s)",
+        processSize->width(), processSize->height(), static_cast<long long>(stages->size()));
     pivision::display::exposePipeline(&pipeline);
     pivision::display::exposeSourceSelector(&pipeline, camera, pattern);
+    pivision::display::exposeProcessingControl(&pipeline, *stages);
 
     QQmlApplicationEngine engine;
     QObject::connect(

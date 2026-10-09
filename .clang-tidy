@@ -1,0 +1,17 @@
+# Project conventions, checked by clang-tidy and shown live by clangd
+# (Qt Creator, vim). See docs/PLAN.md, "Code conventions".
+Checks: >
+  -*,
+  google-readability-casting,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  google-build-using-namespace,
+  readability-identifier-naming
+CheckOptions:
+  # Class data members: camelCase with a trailing underscore (source_).
+  # Plain structs with public fields (Frame, DisplayFrame) keep plain names.
+  - { key: readability-identifier-naming.PrivateMemberCase,    value: camelBack }
+  - { key: readability-identifier-naming.PrivateMemberSuffix,  value: _ }
+  - { key: readability-identifier-naming.ProtectedMemberCase,  value: camelBack }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix, value: _ }
+# Only our code; Qt, OpenCV and GTest headers are someone else's style.
+HeaderFilterRegex: '.*/(components|app)/.*'

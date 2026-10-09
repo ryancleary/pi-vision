@@ -1,6 +1,7 @@
 #ifndef PIVISION_PIPELINE_FRAMEPRODUCER_H
 #define PIVISION_PIPELINE_FRAMEPRODUCER_H
 
+#include <cstdint>
 #include <memory>
 
 #include <QObject>
@@ -8,18 +9,19 @@
 
 #include <pivision/capture/Frame.h>
 #include <pivision/capture/FrameSource.h>
-#include <pivision/pipeline/LatestFrameBuffer.h>
+
+#include "RawFrame.h"
 
 class QTimer;
 
 namespace pivision::pipeline {
 
-// Lives on the capture thread. Reads the source at its frame rate and
-// puts each frame in the buffer.
+// Lives on the capture thread. Reads the source at its frame rate and puts
+// each frame in the raw buffer for the processing thread.
 class FrameProducer : public QObject {
     Q_OBJECT
 public:
-    FrameProducer(std::unique_ptr<capture::FrameSource> source, LatestFrameBuffer &buffer);
+    FrameProducer(std::unique_ptr<capture::FrameSource> source, RawFrameBuffer &buffer);
     ~FrameProducer() override;
 
     // Closes the current source and switches to `source`, opening it if the
@@ -39,11 +41,14 @@ private:
     void openSource();
     void tick();
 
-    std::unique_ptr<capture::FrameSource> m_source;
-    LatestFrameBuffer &m_buffer;
-    QTimer *m_timer = nullptr;
-    capture::Frame m_frame; // reused every tick
-    bool m_running = false;
+    std::unique_ptr<capture::FrameSource> source_;
+    RawFrameBuffer &buffer_;
+    QTimer *timer_ = nullptr;
+    capture::Frame frame_;
+    // Counts source replacements; frames carry it so stale ones can be dropped.
+    std::uint64_t generation_ = 0;
+    std::uint64_t framesRead_ = 0;
+    bool running_ = false;
 };
 
 } // namespace pivision::pipeline

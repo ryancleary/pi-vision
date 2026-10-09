@@ -18,13 +18,13 @@ public:
     bool open() override;
     bool read(Frame &out) override;
     void close() override;
-    std::string name() const override;
-    double nominalFps() const override;
+    std::string name() const override { return "Test pattern"; }
+    double nominalFps() const override { return config_.fps; }
 
 private:
-    TestPatternConfig m_config;
-    cv::Mat m_background;
-    std::uint64_t m_index = 0;
+    TestPatternConfig config_;
+    cv::Mat background_;
+    std::uint64_t index_ = 0;
 };
 
 } // namespace pivision::capture

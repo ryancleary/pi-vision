@@ -7,7 +7,7 @@
 
 #include <pivision/logging/Logging.h>
 
-using namespace pivision::logging;
+namespace pivision::logging {
 
 namespace {
 
@@ -73,3 +73,5 @@ TEST(Logging, UnwritableFileFailsButLoggingContinues)
     qCInfo(lcApp) << "still logs to stderr";
     install(); // back to stderr only for any later tests
 }
+
+} // namespace pivision::logging

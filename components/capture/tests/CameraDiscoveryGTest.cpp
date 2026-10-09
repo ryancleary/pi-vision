@@ -5,7 +5,7 @@
 
 #include <pivision/capture/CameraDiscovery.h>
 
-using pivision::capture::findCameras;
+namespace pivision::capture {
 
 namespace fs = std::filesystem;
 
@@ -32,3 +32,5 @@ TEST(CameraDiscovery, DescribeRejectsMissingAndNonDeviceFiles)
     EXPECT_FALSE(pivision::capture::describeCamera("/nonexistent/video0").has_value());
     EXPECT_FALSE(pivision::capture::describeCamera("/etc/hostname").has_value());
 }
+
+} // namespace pivision::capture

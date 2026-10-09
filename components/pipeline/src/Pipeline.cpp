@@ -4,48 +4,60 @@
 
 #include <pivision/logging/Logging.h>
 
+#include "FrameProcessor.h"
 #include "FrameProducer.h"
+#include "RawFrame.h"
 
 namespace pivision::pipeline {
 
-using logging::lcPipeline;
-
 Pipeline::Pipeline(std::unique_ptr<capture::FrameSource> source, QObject *parent)
     : QObject(parent)
-    , m_sourceName(QString::fromStdString(source->name()))
+    , rawBuffer_(std::make_unique<RawFrameBuffer>())
+    , sourceName_(QString::fromStdString(source->name()))
 {
-    m_producer = std::make_unique<FrameProducer>(std::move(source), m_buffer);
-    m_producer->moveToThread(&m_thread);
-    m_thread.setObjectName(QStringLiteral("capture"));
+    producer_ = std::make_unique<FrameProducer>(std::move(source), *rawBuffer_);
+    processor_ = std::make_unique<FrameProcessor>(*rawBuffer_, displayBuffer_);
+    producer_->moveToThread(&captureThread_);
+    processor_->moveToThread(&processingThread_);
+    captureThread_.setObjectName(QStringLiteral("capture"));
+    processingThread_.setObjectName(QStringLiteral("processing"));
 
-    connect(&m_thread, &QThread::started, m_producer.get(), &FrameProducer::start);
-    // Producer -> Pipeline crosses threads, so these are queued automatically.
-    connect(m_producer.get(), &FrameProducer::frameAvailable, this, &Pipeline::frameAvailable);
-    connect(m_producer.get(), &FrameProducer::opened, this, &Pipeline::onOpened);
-    connect(m_producer.get(), &FrameProducer::failed, this, &Pipeline::onFailed);
+    connect(&captureThread_, &QThread::started, producer_.get(), &FrameProducer::start);
+    // Each arrow crosses a thread, so these connections are queued automatically.
+    connect(producer_.get(), &FrameProducer::frameAvailable, processor_.get(),
+        &FrameProcessor::processLatest);
+    connect(processor_.get(), &FrameProcessor::frameAvailable, this, &Pipeline::onProcessedFrame);
+    connect(producer_.get(), &FrameProducer::opened, this, &Pipeline::onOpened);
+    connect(producer_.get(), &FrameProducer::failed, this, &Pipeline::onFailed);
 }
 
 Pipeline::~Pipeline() { stop(); }
 
 void Pipeline::start()
 {
-    if (!m_thread.isRunning()) {
-        qCDebug(lcPipeline) << "Starting capture thread";
-        m_thread.start();
-    }
+    if (captureThread_.isRunning())
+        return;
+    qCDebug(logging::lcPipeline) << "Starting capture and processing threads";
+    // Processing first, so it is ready for the first frame.
+    processingThread_.start();
+    captureThread_.start();
 }
 
 void Pipeline::stop()
 {
-    if (!m_thread.isRunning())
-        return;
-
-    qCDebug(lcPipeline) << "Stopping capture thread; dropped frames:" << droppedFrames();
-    // Run stop() on the producer's own thread and wait for it, so the timer and
-    // source are shut down by the thread that owns them.
-    QMetaObject::invokeMethod(m_producer.get(), &FrameProducer::stop, Qt::BlockingQueuedConnection);
-    m_thread.quit();
-    m_thread.wait();
+    if (captureThread_.isRunning()) {
+        qCDebug(logging::lcPipeline) << "Stopping; dropped frames:" << droppedFrames();
+        // Run stop() on the producer's own thread and wait for it, so the timer
+        // and source are shut down by the thread that owns them.
+        QMetaObject::invokeMethod(
+            producer_.get(), &FrameProducer::stop, Qt::BlockingQueuedConnection);
+        captureThread_.quit();
+        captureThread_.wait();
+    }
+    if (processingThread_.isRunning()) {
+        processingThread_.quit();
+        processingThread_.wait();
+    }
 }
 
 void Pipeline::setSource(std::unique_ptr<capture::FrameSource> source)
@@ -53,15 +65,18 @@ void Pipeline::setSource(std::unique_ptr<capture::FrameSource> source)
     if (!source)
         return;
 
-    qCInfo(lcPipeline) << "Switching source to" << QString::fromStdString(source->name());
-    // Cut the old feed right away; the new one appears once it opens.
+    qCInfo(logging::lcPipeline) << "Switching source to" << QString::fromStdString(source->name());
+    // Cut the old feed right away; the new one appears once it opens. Frames
+    // still in flight from the old source carry the old generation and are dropped.
+    ++generation_;
+    latest_.reset();
     setSourceName(QString::fromStdString(source->name()));
     setErrorString({});
     emit cleared();
 
-    if (!m_thread.isRunning()) {
+    if (!captureThread_.isRunning()) {
         // Nothing runs on the capture thread yet, so it's safe to call directly.
-        m_producer->replaceSource(std::move(source));
+        producer_->replaceSource(std::move(source));
         return;
     }
 
@@ -69,19 +84,49 @@ void Pipeline::setSource(std::unique_ptr<capture::FrameSource> source)
     // shared holder frees the source even if the call never runs, for example
     // when the pipeline stops before the queued call is processed.
     auto holder = std::make_shared<std::unique_ptr<capture::FrameSource>>(std::move(source));
-    FrameProducer *producer = m_producer.get();
+    FrameProducer *producer = producer_.get();
     QMetaObject::invokeMethod(
         producer, [producer, holder] { producer->replaceSource(std::move(*holder)); },
         Qt::QueuedConnection);
 }
 
-std::optional<DisplayFrame> Pipeline::takeLatestFrame() { return m_buffer.take(); }
+void Pipeline::setStages(const QList<StageConfig> &stages)
+{
+    onProcessingThread([stages](FrameProcessor &processor) { processor.configure(stages); });
+}
 
-std::uint64_t Pipeline::droppedFrames() const { return m_buffer.droppedCount(); }
+void Pipeline::setStageEnabled(const QString &id, bool enabled)
+{
+    qCDebug(logging::lcPipeline) << "Stage" << id << (enabled ? "on" : "off");
+    onProcessingThread([id = id.toStdString(), enabled](FrameProcessor &processor) {
+        processor.setStageEnabled(id, enabled);
+    });
+}
 
-QString Pipeline::sourceName() const { return m_sourceName; }
+void Pipeline::setStageParameter(const QString &id, const QString &name, double value)
+{
+    onProcessingThread([id = id.toStdString(), name = name.toStdString(), value](
+                           FrameProcessor &processor) { processor.setStageParameter(id, name, value); });
+}
 
-QString Pipeline::errorString() const { return m_errorString; }
+void Pipeline::setProcessSize(const QSize &size)
+{
+    onProcessingThread([size](FrameProcessor &processor) { processor.setProcessSize(size); });
+}
+
+std::uint64_t Pipeline::droppedFrames() const
+{
+    return rawBuffer_->droppedCount() + displayBuffer_.droppedCount();
+}
+
+void Pipeline::onProcessedFrame()
+{
+    auto frame = displayBuffer_.take();
+    if (!frame || frame->generation != generation_)
+        return; // already taken, or from a source that has since been replaced
+    latest_ = std::move(frame);
+    emit frameAvailable();
+}
 
 void Pipeline::onOpened(const QString &name)
 {
@@ -91,24 +136,36 @@ void Pipeline::onOpened(const QString &name)
 
 void Pipeline::onFailed(const QString &message)
 {
+    latest_.reset();
     setErrorString(message);
     emit failed(message);
 }
 
 void Pipeline::setSourceName(const QString &name)
 {
-    if (name == m_sourceName)
+    if (name == sourceName_)
         return;
-    m_sourceName = name;
+    sourceName_ = name;
     emit sourceNameChanged();
 }
 
 void Pipeline::setErrorString(const QString &message)
 {
-    if (message == m_errorString)
+    if (message == errorString_)
         return;
-    m_errorString = message;
+    errorString_ = message;
     emit errorStringChanged();
+}
+
+void Pipeline::onProcessingThread(std::function<void(FrameProcessor &)> task)
+{
+    FrameProcessor *processor = processor_.get();
+    if (!processingThread_.isRunning()) {
+        task(*processor);
+        return;
+    }
+    QMetaObject::invokeMethod(
+        processor, [processor, task = std::move(task)] { task(*processor); }, Qt::QueuedConnection);
 }
 
 } // namespace pivision::pipeline

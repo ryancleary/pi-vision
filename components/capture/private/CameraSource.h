@@ -18,16 +18,18 @@ public:
     bool open() override;
     bool read(Frame &out) override;
     void close() override;
-    std::string name() const override;
-    double nominalFps() const override;
+    // The driver's name once open, e.g. "HD Webcam C270 (/dev/video0)".
+    std::string name() const override { return label_.empty() ? device_ : label_; }
+    // What the camera reported after open, or the requested rate before.
+    double nominalFps() const override { return fps_ > 0.0 ? fps_ : config_.fps; }
 
 private:
-    std::string m_device;
-    std::string m_label; // "HD Webcam C270 (/dev/video0)" once opened
-    CameraConfig m_config;
-    cv::VideoCapture m_capture;
-    double m_fps = 0.0;
-    std::uint64_t m_index = 0;
+    std::string device_;
+    std::string label_; // "HD Webcam C270 (/dev/video0)" once opened
+    CameraConfig config_;
+    cv::VideoCapture capture_;
+    double fps_ = 0.0;
+    std::uint64_t index_ = 0;
 };
 
 } // namespace pivision::capture

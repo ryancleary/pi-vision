@@ -13,25 +13,22 @@ FrameView::FrameView(QQuickItem *parent)
     setFlag(ItemHasContents, true);
 }
 
-pivision::pipeline::Pipeline *FrameView::pipeline() const { return m_pipeline; }
-
-void FrameView::setPipeline(pivision::pipeline::Pipeline *pipeline)
+void FrameView::setPipeline(pipeline::Pipeline *pipeline)
 {
-    if (m_pipeline == pipeline)
+    if (pipeline_ == pipeline)
         return;
 
-    for (const auto &connection : std::as_const(m_connections))
+    for (const auto &connection : std::as_const(connections_))
         disconnect(connection);
-    m_connections.clear();
+    connections_.clear();
 
-    m_pipeline = pipeline;
-    if (m_pipeline) {
-        using pivision::pipeline::Pipeline;
-        m_connections = {
-            connect(m_pipeline.data(), &Pipeline::frameAvailable, this, &FrameView::onFrameAvailable),
+    pipeline_ = pipeline;
+    if (pipeline_) {
+        connections_ = {
+            connect(pipeline_.data(), &pipeline::Pipeline::frameAvailable, this, &FrameView::onFrameAvailable),
             // A source switch or failure cuts the feed: show nothing rather than a frozen frame.
-            connect(m_pipeline.data(), &Pipeline::cleared, this, &FrameView::clearFrame),
-            connect(m_pipeline.data(), &Pipeline::failed, this, &FrameView::clearFrame),
+            connect(pipeline_.data(), &pipeline::Pipeline::cleared, this, &FrameView::clearFrame),
+            connect(pipeline_.data(), &pipeline::Pipeline::failed, this, &FrameView::clearFrame),
         };
     }
     clearFrame();
@@ -40,30 +37,40 @@ void FrameView::setPipeline(pivision::pipeline::Pipeline *pipeline)
 
 void FrameView::onFrameAvailable()
 {
-    if (!m_pipeline)
+    if (!pipeline_)
         return;
 
-    if (auto frame = m_pipeline->takeLatestFrame()) {
-        m_frame = std::move(frame->image);
-        m_frameDirty = true;
+    if (auto frame = pipeline_->latestFrame()) {
+        // Shared, not copied: QImage is implicitly shared.
+        frame_ = stream_ == Raw ? frame->raw : frame->processed;
+        frameDirty_ = true;
         update(); // schedules updatePaintNode() on the render thread
     }
 }
 
+void FrameView::setStream(Stream stream)
+{
+    if (stream == stream_)
+        return;
+    stream_ = stream;
+    onFrameAvailable(); // show the other image of the current frame right away
+    emit streamChanged();
+}
+
 void FrameView::clearFrame()
 {
-    m_frame = QImage();
-    m_frameDirty = true;
+    frame_ = QImage();
+    frameDirty_ = true;
     update();
 }
 
 QSGNode *FrameView::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     // Runs on the render thread while the GUI thread is blocked,
-    // so reading m_frame here is safe.
+    // so reading frame_ here is safe.
     auto *node = static_cast<QSGSimpleTextureNode *>(oldNode);
 
-    if (m_frame.isNull() || width() <= 0 || height() <= 0) {
+    if (frame_.isNull() || width() <= 0 || height() <= 0) {
         delete node;
         return nullptr;
     }
@@ -72,20 +79,21 @@ QSGNode *FrameView::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
         node = new QSGSimpleTextureNode;
         node->setOwnsTexture(true); // the old texture is deleted when replaced
         node->setFiltering(QSGTexture::Linear);
-        m_frameDirty = true;
+        frameDirty_ = true;
     }
 
-    if (m_frameDirty) {
-        node->setTexture(window()->createTextureFromImage(m_frame));
-        m_frameDirty = false;
+    if (frameDirty_) {
+        node->setTexture(window()->createTextureFromImage(frame_));
+        frameDirty_ = false;
     }
 
-    // Fit: scale to the largest size that shows the whole frame, centered.
-    const QSizeF frameSize = m_frame.size();
-    const qreal scale = qMin(width() / frameSize.width(), height() / frameSize.height());
-    const QSizeF fitted = frameSize * scale;
-    node->setRect(QRectF((width() - fitted.width()) / 2, (height() - fitted.height()) / 2,
-        fitted.width(), fitted.height()));
+    // Show the whole frame as large as the item allows, centered, with bars
+    // on the sides that don't fill ("letterboxing"). QSizeF::scaled with
+    // Qt::KeepAspectRatio computes the size; moveCenter does the centering.
+    const QSizeF fitted = QSizeF(frame_.size()).scaled(size(), Qt::KeepAspectRatio);
+    QRectF target(QPointF(), fitted);
+    target.moveCenter(boundingRect().center());
+    node->setRect(target);
 
     return node;
 }

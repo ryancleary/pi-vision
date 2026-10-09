@@ -11,7 +11,8 @@ option(PIVISION_BUILD_TESTS "Build unit tests" ON)
 set(PIVISION_DEV_LOG_FILE "" CACHE STRING "Default log file for development builds")
 
 # Pinned to Qt 6.8 to match the meta-qt6 branch used for the Pi image.
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick
+    HINTS "$ENV{QT_ROOT_DIR}") # take the pinned install over the system one (Arch)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.9)
     message(FATAL_ERROR
         "Found Qt ${Qt6_VERSION}, but this project is pinned to 6.8.\n"
@@ -20,7 +21,8 @@ endif()
 message(STATUS "Using Qt ${Qt6_VERSION} from ${Qt6_DIR}")
 
 # Pinned to 4.9 to match Scarthgap. Never highgui: it may pull in a second Qt.
-find_package(OpenCV 4.9 REQUIRED COMPONENTS core imgproc videoio)
+find_package(OpenCV 4.9 REQUIRED COMPONENTS core imgproc videoio
+    HINTS "$ENV{OPENCV_ROOT_DIR}") # take the pinned install over the system one (Arch)
 if(OpenCV_VERSION VERSION_GREATER_EQUAL 5)
     message(FATAL_ERROR
         "Found OpenCV ${OpenCV_VERSION}, but this project is pinned to 4.9.\n"

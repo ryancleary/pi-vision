@@ -8,9 +8,7 @@
 
 #include <pivision/capture/SourceFactory.h>
 
-using pivision::capture::Frame;
-using pivision::capture::makeSourceFromSpec;
-using pivision::capture::makeVideoSource;
+namespace pivision::capture {
 
 namespace {
 
@@ -78,3 +76,5 @@ TEST(SourceFromSpec, PathsUnderDevVideoAreCameras)
     EXPECT_EQ(makeSourceFromSpec("/tmp/clip.avi")->name(), "clip.avi");
     EXPECT_EQ(makeSourceFromSpec("rtsp://camera.local/stream")->name(), "rtsp://camera.local/stream");
 }
+
+} // namespace pivision::capture

@@ -7,6 +7,14 @@ qt_add_qml_module(pivision
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/StageControl.qml
+)
+
+# Processing stages, in order, with defaults and slider ranges. Compiled in:
+# changing it means rebuilding.
+qt_add_resources(pivision "config"
+    PREFIX /pivision
+    FILES config/stages.json
 )
 
 target_link_libraries(pivision PRIVATE

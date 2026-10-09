@@ -20,14 +20,14 @@ public:
     bool open() override;
     bool read(Frame &out) override;
     void close() override;
-    std::string name() const override;
-    double nominalFps() const override;
+    std::string name() const override { return active_ ? active_->name() : "Auto"; }
+    double nominalFps() const override { return active_ ? active_->nominalFps() : config_.fps; }
 
 private:
-    std::vector<std::string> m_devices;
-    CameraConfig m_config;
-    TestPatternConfig m_fallback;
-    std::unique_ptr<FrameSource> m_active;
+    std::vector<std::string> devices_;
+    CameraConfig config_;
+    TestPatternConfig fallback_;
+    std::unique_ptr<FrameSource> active_;
 };
 
 } // namespace pivision::capture
