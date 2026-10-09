@@ -70,6 +70,7 @@ void Pipeline::setSource(std::unique_ptr<capture::FrameSource> source)
     // still in flight from the old source carry the old generation and are dropped.
     ++generation_;
     latest_.reset();
+    metrics_.clear();
     setSourceName(QString::fromStdString(source->name()));
     setErrorString({});
     emit cleared();
@@ -116,7 +117,13 @@ void Pipeline::setProcessSize(const QSize &size)
 
 std::uint64_t Pipeline::droppedFrames() const
 {
-    return rawBuffer_->droppedCount() + displayBuffer_.droppedCount();
+    const DropCounts drops = dropCounts();
+    return drops.beforeProcessing + drops.beforeDisplay;
+}
+
+DropCounts Pipeline::dropCounts() const
+{
+    return DropCounts { rawBuffer_->droppedCount(), displayBuffer_.droppedCount() };
 }
 
 void Pipeline::onProcessedFrame()
@@ -125,6 +132,7 @@ void Pipeline::onProcessedFrame()
     if (!frame || frame->generation != generation_)
         return; // already taken, or from a source that has since been replaced
     latest_ = std::move(frame);
+    metrics_.add(*latest_, FrameMetrics::Clock::now(), dropCounts());
     emit frameAvailable();
 }
 
@@ -137,6 +145,7 @@ void Pipeline::onOpened(const QString &name)
 void Pipeline::onFailed(const QString &message)
 {
     latest_.reset();
+    metrics_.clear();
     setErrorString(message);
     emit failed(message);
 }

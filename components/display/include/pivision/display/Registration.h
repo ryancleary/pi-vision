@@ -29,6 +29,12 @@ void exposeSourceSelector(pivision::pipeline::Pipeline *pipeline,
 void exposeProcessingControl(pivision::pipeline::Pipeline *pipeline,
     const QList<pivision::pipeline::StageConfig> &stages);
 
+// Makes the metrics panel's backend available to QML as the singleton
+// `MetricsMonitor`, reading `pipeline` and naming stages from `stages`.
+// Call before loading any QML; owned by `pipeline`.
+void exposeMetricsMonitor(pivision::pipeline::Pipeline *pipeline,
+    const QList<pivision::pipeline::StageConfig> &stages);
+
 } // namespace pivision::display
 
 #endif // PIVISION_DISPLAY_REGISTRATION_H

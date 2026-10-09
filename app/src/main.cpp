@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
     pivision::display::exposePipeline(&pipeline);
     pivision::display::exposeSourceSelector(&pipeline, camera, pattern);
     pivision::display::exposeProcessingControl(&pipeline, *stages);
+    pivision::display::exposeMetricsMonitor(&pipeline, *stages);
 
     QQmlApplicationEngine engine;
     QObject::connect(

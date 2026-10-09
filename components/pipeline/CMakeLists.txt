@@ -1,10 +1,12 @@
 add_library(pivision_pipeline STATIC
+    include/pivision/pipeline/FrameMetrics.h
     include/pivision/pipeline/LatestFrameBuffer.h
     include/pivision/pipeline/Pipeline.h
     include/pivision/pipeline/StageConfig.h
     private/FrameProcessor.h
     private/FrameProducer.h
     private/RawFrame.h
+    src/FrameMetrics.cpp
     src/FrameProcessor.cpp
     src/FrameProducer.cpp
     src/Pipeline.cpp

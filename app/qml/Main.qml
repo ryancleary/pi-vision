@@ -137,28 +137,75 @@ ApplicationWindow {
             }
         }
 
+        // Side panel: processing stages, or live metrics.
         Rectangle {
             Layout.preferredWidth: Theme.sidePanelWidth
             Layout.fillHeight: true
             color: Theme.panel
 
-            ScrollView {
+            ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: Theme.margin
-                contentWidth: availableWidth
+                spacing: 0
 
-                ColumnLayout {
-                    id: stageList
+                TabBar {
+                    id: panelTabs
 
-                    width: parent.width
-                    spacing: 10
+                    Layout.fillWidth: true
+                    background: Rectangle { color: Theme.background }
 
-                    Label {
-                        text: qsTr("Processing")
-                        color: Theme.muted
-                        font.pixelSize: Theme.headingSize
-                    }
+                    PanelTab { text: qsTr("Stages") }
+                    PanelTab { text: qsTr("Metrics") }
                 }
+
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.margins: Theme.margin
+                    currentIndex: panelTabs.currentIndex
+
+                    ScrollView {
+                        contentWidth: availableWidth
+
+                        ColumnLayout {
+                            id: stageList
+
+                            width: parent.width
+                            spacing: 10
+                        }
+                    }
+
+                    MetricsPanel { }
+                }
+            }
+        }
+    }
+
+    // A side-panel tab: panel-colored with an accent underline when selected.
+    // (The Basic style would fill unselected tabs with palette.dark, our accent.)
+    component PanelTab: TabButton {
+        id: tab
+
+        implicitHeight: Theme.tabHeight
+        font.pixelSize: Theme.headingSize
+
+        contentItem: Text {
+            text: tab.text
+            font: tab.font
+            color: tab.checked ? Theme.text : Theme.muted
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        background: Rectangle {
+            color: tab.checked ? Theme.panel : Theme.background
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: Theme.tabIndicatorHeight
+                visible: tab.checked
+                color: Theme.accent
             }
         }
     }

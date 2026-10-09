@@ -197,4 +197,16 @@ TEST_F(PipelineTest, StopIsSafeWithoutStartAndWhenRepeated)
     SUCCEED();
 }
 
+TEST_F(PipelineTest, MetricsCountArrivingFramesAndResetOnSourceSwitch)
+{
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(160)));
+    pipeline.start();
+    // A rate needs at least two frames in the window; wait for a few.
+    ASSERT_TRUE(waitForFrame(pipeline, [](const DisplayFrame &f) { return f.index >= 5; }));
+    EXPECT_GT(pipeline.metrics().displayFps, 0.0);
+
+    pipeline.setSource(capture::makeTestPatternSource(patternOfWidth(320)));
+    EXPECT_EQ(pipeline.metrics().displayFps, 0.0);
+}
+
 } // namespace pivision::pipeline

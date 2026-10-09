@@ -33,6 +33,7 @@ Ways to run it:
   Pipeline is exposed to QML as a singleton through a QML_FOREIGN registration;
   main.cpp owns it and calls exposePipeline() before loading QML.
 - Layering: capture (no Qt) -> pipeline (Qt, no QML) -> display (Qt Quick) -> app.
+  system (no Qt) reads CPU use, temperature and Pi throttle flags; display uses it.
 - Compare UI: raw and processed frames shown side by side, as an overlay with an
   opacity slider, or picture-in-picture (processed full, raw inset). One mode enum
   drives QML states/transitions. Design adapted from an earlier QML project of mine,
@@ -40,7 +41,13 @@ Ways to run it:
 - QML colors/sizes live in one Theme.qml singleton. QML files in app/qml/ need
   `import PiVision` to see it: they sit in a subfolder of the module, and the
   implicit folder import doesn't pick up singletons.
-- Metrics panel with FPS and per-stage latency.
+- Metrics: a Metrics tab next to Stages in the side panel. Capture and display
+  fps, capture-to-UI latency, per-stage times, dropped frames/s, process CPU,
+  SoC temp, Pi throttle flags. Averaged over 1 s (FrameMetrics in pipeline),
+  refreshed 4x/s, only while the tab is visible.
+- Captures: a button saves metrics + settings as JSON plus raw/processed PNGs.
+  Desktop: logs/captures/. Pi: /var/crash/captures (crash partition), newest 10
+  kept. `pv captures` pulls them; the app can also copy them to a USB stick.
 - Headless mode: process a file from the command line and write JSON. Used for tests and CI.
 - Process at 320x240 on the Pi.
 
@@ -218,7 +225,9 @@ No AGPL models (rules out Ultralytics YOLO).
 - [x] Webcam and video file sources
 - [x] Stage interface and basic stages, with tests; pipeline delivers raw + processed
 - [x] Compare UI: side by side, overlay with opacity, picture-in-picture
-- [ ] Metrics panel
+- [x] Metrics panel
+- [ ] Capture button, storage on the crash partition, pv captures
+- [ ] Copy captures to USB from the app
 - [ ] Detector thread and QML overlay
 - [ ] Headless mode
 - [ ] Rebuild the image and measure on the Pi
@@ -231,3 +240,5 @@ No AGPL models (rules out Ultralytics YOLO).
 
 - Detection model (permissive license, small enough for the Pi 3).
 - Sample video source (CC0 or public domain).
+- Check on the Pi that /sys/devices/platform/soc/soc:firmware/get_throttled
+  exists and is readable by the pivision user (metrics show n/a otherwise).

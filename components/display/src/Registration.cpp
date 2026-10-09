@@ -1,5 +1,6 @@
 #include <pivision/display/Registration.h>
 
+#include "MetricsMonitor.h"
 #include "PipelineForeign.h"
 #include "ProcessingControl.h"
 #include "SourceSelector.h"
@@ -22,6 +23,12 @@ void exposeProcessingControl(pivision::pipeline::Pipeline *pipeline,
     const QList<pivision::pipeline::StageConfig> &stages)
 {
     ProcessingControl::instance_ = new ProcessingControl(pipeline, stages, pipeline);
+}
+
+void exposeMetricsMonitor(pivision::pipeline::Pipeline *pipeline,
+    const QList<pivision::pipeline::StageConfig> &stages)
+{
+    MetricsMonitor::instance_ = new MetricsMonitor(pipeline, stages, pipeline);
 }
 
 } // namespace pivision::display

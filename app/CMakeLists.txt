@@ -13,6 +13,7 @@ qt_add_qml_module(pivision
         qml/Theme.qml
         qml/PanelButton.qml
         qml/CompareView.qml
+        qml/MetricsPanel.qml
         qml/StageControl.qml
 )
 
