@@ -37,6 +37,9 @@ Ways to run it:
   opacity slider, or picture-in-picture (processed full, raw inset). One mode enum
   drives QML states/transitions. Design adapted from an earlier QML project of mine,
   rebuilt on two FrameViews instead of Qt Multimedia.
+- QML colors/sizes live in one Theme.qml singleton. QML files in app/qml/ need
+  `import PiVision` to see it: they sit in a subfolder of the module, and the
+  implicit folder import doesn't pick up singletons.
 - Metrics panel with FPS and per-stage latency.
 - Headless mode: process a file from the command line and write JSON. Used for tests and CI.
 - Process at 320x240 on the Pi.
@@ -212,9 +215,9 @@ No AGPL models (rules out Ultralytics YOLO).
 - [ ] Same on the Pi (needs flashing)
 
 ### 4. Pipeline and detection
-- [ ] Webcam and video file sources
-- [ ] Stage interface and basic stages, with tests; pipeline delivers raw + processed
-- [ ] Compare UI: side by side, overlay with opacity, picture-in-picture
+- [x] Webcam and video file sources
+- [x] Stage interface and basic stages, with tests; pipeline delivers raw + processed
+- [x] Compare UI: side by side, overlay with opacity, picture-in-picture
 - [ ] Metrics panel
 - [ ] Detector thread and QML overlay
 - [ ] Headless mode

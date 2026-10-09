@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
+import PiVision
 import PiVision.Display
 
 // One processing stage: an on/off switch plus a slider per parameter.
@@ -35,7 +36,7 @@ ColumnLayout {
             required property var modelData
 
             Layout.fillWidth: true
-            Layout.leftMargin: 12
+            Layout.leftMargin: Theme.margin
             spacing: 0
             enabled: toggle.checked
 
@@ -45,7 +46,7 @@ ColumnLayout {
                               .arg(parameter.modelData.step < 1 ? slider.value.toFixed(1)
                                                                 : Math.round(slider.value))
                 opacity: parameter.enabled ? 1.0 : 0.5
-                font.pixelSize: 12
+                font.pixelSize: Theme.fontSize
             }
 
             Slider {

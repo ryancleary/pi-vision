@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
+import PiVision
 import PiVision.Display
 
 ApplicationWindow {
@@ -10,52 +11,41 @@ ApplicationWindow {
     height: 640
     visible: true
     title: "pi-vision"
-    color: colors.background
-
-    QtObject {
-        id: colors
-        readonly property color background: "#1b1f24"
-        readonly property color panel: "#262b31"
-        readonly property color control: "#343a42"
-        readonly property color text: "#e6e6e6"
-        readonly property color muted: "#9aa4ad"
-        readonly property color accent: "#3cc8ff"
-        readonly property color error: "#ff8a80"
-    }
+    color: Theme.background
 
     // Dark theme for every Basic-style control.
-    palette.window: colors.panel
-    palette.windowText: colors.text
-    palette.base: colors.background
-    palette.text: colors.text
-    palette.button: colors.control
-    palette.buttonText: colors.text
-    palette.highlight: colors.accent
-    palette.highlightedText: colors.background
-    palette.mid: colors.control
-    palette.midlight: colors.control // switch track when off, slider groove
-    palette.dark: colors.accent      // switch track when on, slider fill
-    palette.light: colors.control
-    palette.placeholderText: colors.muted
+    palette.window: Theme.panel
+    palette.windowText: Theme.text
+    palette.base: Theme.background
+    palette.text: Theme.text
+    palette.button: Theme.control
+    palette.buttonText: Theme.text
+    palette.highlight: Theme.accent
+    palette.highlightedText: Theme.background
+    palette.mid: Theme.control
+    palette.midlight: Theme.control // switch track when off, slider groove
+    palette.dark: Theme.accent      // switch track when on, slider fill
+    palette.light: Theme.control
+    palette.placeholderText: Theme.muted
 
     header: ToolBar {
-        background: Rectangle { color: colors.panel }
+        background: Rectangle { color: Theme.panel }
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-            spacing: 8
+            anchors.leftMargin: Theme.margin
+            anchors.rightMargin: Theme.margin
+            spacing: Theme.spacing
 
             Label {
                 text: qsTr("Source")
-                color: colors.muted
+                color: Theme.muted
             }
 
             ComboBox {
                 id: sourceBox
 
-                Layout.preferredWidth: 340
+                Layout.preferredWidth: Theme.sourceBoxWidth
                 textRole: "label"
                 // Cameras and the test pattern, then "Other..." for anything typed in.
                 model: SourceSelector.sources.concat([{ label: qsTr("Other…"), spec: "" }])
@@ -79,10 +69,41 @@ ApplicationWindow {
 
             Item { Layout.fillWidth: true }
 
-            // Temporary until the compare view (side by side, overlay, picture-in-picture).
-            Switch {
-                id: rawSwitch
-                text: qsTr("Show raw")
+            // How strongly the processed image covers the raw one in overlay mode.
+            Label {
+                visible: compareView.mode === CompareView.ViewMode.Overlay
+                text: qsTr("Processed %1%").arg(Math.round(overlayMix.value * 100))
+                color: Theme.muted
+            }
+
+            Slider {
+                id: overlayMix
+
+                Layout.preferredWidth: Theme.sliderWidth
+                visible: compareView.mode === CompareView.ViewMode.Overlay
+                from: 0
+                to: 1
+                value: 0.5
+            }
+
+            RowLayout {
+                spacing: Theme.buttonGap
+
+                Repeater {
+                    model: [
+                        { label: qsTr("Side by side"), mode: CompareView.ViewMode.SideBySide },
+                        { label: qsTr("Overlay"), mode: CompareView.ViewMode.Overlay },
+                        { label: qsTr("PiP"), mode: CompareView.ViewMode.PictureInPicture }
+                    ]
+
+                    delegate: PanelButton {
+                        required property var modelData
+
+                        label: modelData.label
+                        active: compareView.mode === modelData.mode
+                        onClicked: compareView.mode = modelData.mode
+                    }
+                }
             }
         }
     }
@@ -95,10 +116,12 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            FrameView {
+            CompareView {
+                id: compareView
+
                 anchors.fill: parent
-                pipeline: Pipeline
-                stream: rawSwitch.checked ? FrameView.Raw : FrameView.Processed
+                anchors.margins: Theme.margin
+                overlayOpacity: overlayMix.value
             }
 
             // Shown when the source fails; the feed is cut, so this is all that's visible.
@@ -109,19 +132,19 @@ ApplicationWindow {
                 wrapMode: Text.Wrap
                 visible: Pipeline.errorString !== ""
                 text: Pipeline.errorString
-                color: colors.error
-                font.pixelSize: 18
+                color: Theme.error
+                font.pixelSize: Theme.messageSize
             }
         }
 
         Rectangle {
-            Layout.preferredWidth: 280
+            Layout.preferredWidth: Theme.sidePanelWidth
             Layout.fillHeight: true
-            color: colors.panel
+            color: Theme.panel
 
             ScrollView {
                 anchors.fill: parent
-                anchors.margins: 12
+                anchors.margins: Theme.margin
                 contentWidth: availableWidth
 
                 ColumnLayout {
@@ -132,8 +155,8 @@ ApplicationWindow {
 
                     Label {
                         text: qsTr("Processing")
-                        color: colors.muted
-                        font.pixelSize: 13
+                        color: Theme.muted
+                        font.pixelSize: Theme.headingSize
                     }
                 }
             }
@@ -178,7 +201,7 @@ ApplicationWindow {
         onAccepted: SourceSelector.select(specField.text)
 
         ColumnLayout {
-            spacing: 8
+            spacing: Theme.spacing
 
             Label { text: qsTr("Camera device, video file or stream URL") }
 
