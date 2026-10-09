@@ -21,5 +21,6 @@ target_include_directories(pivision_display
 
 target_link_libraries(pivision_display
     PUBLIC pivision::capture pivision::pipeline Qt6::Quick
+    PRIVATE pivision::logging
 )
 

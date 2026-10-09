@@ -8,8 +8,12 @@
     "binary": "qemu-system-x86_64",
     "kernel": "bzImage",
     "rootfs": "ext4",
-    "append": "root=/dev/vda rw console=ttyS0 quiet loglevel=3 vt.global_cursor_default=0",
+    "append": "root=/dev/vda rw console=ttyS0",
     "cpus": 4,
     "memory": 1024
+  },
+  "ssh": {
+    "host": "localhost",
+    "port": 2222
   }
 }

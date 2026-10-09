@@ -1,0 +1,63 @@
+#!/bin/sh
+# Saves the in-memory journal to the crash area when a pi-vision service stops
+# abnormally. Run by systemd as root after every stop of our services:
+#   ExecStopPost=+/usr/libexec/pivision/crash-dump %n
+#
+# systemd sets SERVICE_RESULT ("success" for a normal stop), EXIT_CODE and
+# EXIT_STATUS. The paths and the number of dumps kept can be overridden for
+# testing with PIVISION_CRASH_DIR, PIVISION_JOURNAL_DIR and PIVISION_CRASH_KEEP.
+set -u
+
+unit=${1:-unknown.service}
+result=${SERVICE_RESULT:-unknown}
+[ "$result" = "success" ] && exit 0
+
+crash_dir=${PIVISION_CRASH_DIR:-/var/crash}
+journal_dir=${PIVISION_JOURNAL_DIR:-/run/log/journal}
+keep=${PIVISION_CRASH_KEEP:-5}
+
+mkdir -p "$crash_dir" || exit 0
+
+# The Pi has no real-time clock, so the date can be wrong until the network
+# sets it. A counter keeps dumps in their true order regardless.
+seq_file="$crash_dir/.sequence"
+seq=$(cat "$seq_file" 2>/dev/null)
+case "$seq" in '' | *[!0-9]*) seq=0 ;; esac
+seq=$((seq + 1))
+echo "$seq" >"$seq_file"
+
+name=$(printf '%06d_%s_%s' "$seq" "$(date +%Y-%m-%d_%H%M%S)" "${unit%.service}")
+dest="$crash_dir/$name"
+mkdir -p "$dest/journal" || exit 0
+
+# Have journald write out anything it still holds, then copy its files.
+journalctl --sync 2>/dev/null
+cp -a "$journal_dir/." "$dest/journal/" 2>/dev/null
+
+{
+    echo "unit: $unit"
+    echo "result: $result"
+    echo "exit_code: ${EXIT_CODE:-}"
+    echo "exit_status: ${EXIT_STATUS:-}"
+    echo "time: $(date '+%Y-%m-%d %H:%M:%S %z')"
+    echo "uptime_seconds: $(cut -d' ' -f1 /proc/uptime 2>/dev/null)"
+    echo "boot_id: $(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
+} >"$dest/summary.txt"
+
+# Readable by anyone, so the dump can be read straight off the card on a PC
+# without root.
+chmod -R a+rX "$dest"
+
+# Keep only the newest dumps. Names start with the zero-padded counter, so
+# sorting by name lists them oldest first.
+dumps=$(ls -1 "$crash_dir" | grep '^[0-9]\{6\}_' | sort)
+count=$(printf '%s\n' "$dumps" | grep -c .)
+for old in $dumps; do
+    [ "$count" -le "$keep" ] && break
+    rm -rf "${crash_dir:?}/$old"
+    count=$((count - 1))
+done
+
+# Make sure everything is on the card before anything else can go wrong.
+sync
+exit 0

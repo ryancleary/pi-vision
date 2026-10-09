@@ -3,6 +3,9 @@ build/
 build-*/
 out/
 
+#Logging
+logs/
+
 # Qt Creator / CMake user files
 CMakeLists.txt.user*
 CMakeUserPresets.json

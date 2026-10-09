@@ -14,7 +14,13 @@ target_link_libraries(pivision PRIVATE
     pivision::capture
     pivision::pipeline
     pivision::display
+    pivision::logging
     pivision_displayplugin
+)
+
+target_compile_definitions(pivision PRIVATE
+    PIVISION_VERSION="${PROJECT_VERSION}"
+    PIVISION_DEV_LOG_FILE="${PIVISION_DEV_LOG_FILE}"
 )
 
 install(TARGETS pivision

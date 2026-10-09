@@ -1,0 +1,7 @@
+# short-description: pi-vision SD card for Raspberry Pi
+# long-description: meta-raspberrypi's boot and root partitions, plus a 64 MB
+# "crash" partition where crash-dump saves the journal when a pi-vision service
+# fails. Mounted with nofail, so a missing or damaged partition never blocks boot.
+
+include sdimage-raspberrypi.wks
+part /var/crash --ondisk mmcblk0 --fstype=ext4 --label crash --use-label --align 4096 --size 64 --fsoptions "defaults,noatime,nofail"

@@ -39,5 +39,5 @@ do_install:append() {
 
 FILES:${PN} += "${datadir}/pivision ${systemd_system_unitdir}/pivision-failed.service"
 # The failure screen runs through the qml tool.
-RDEPENDS:${PN} += "qtdeclarative-tools"
+RDEPENDS:${PN} += "qtdeclarative-tools pivision-logging"
 

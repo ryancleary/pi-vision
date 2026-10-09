@@ -10,8 +10,11 @@
 #include <QSize>
 #include <QtQml/QQmlExtensionPlugin>
 
+#include <opencv2/core/version.hpp>
+
 #include <pivision/capture/SourceFactory.h>
 #include <pivision/display/Registration.h>
+#include <pivision/logging/Logging.h>
 #include <pivision/pipeline/Pipeline.h>
 
 // PiVision.Display is a static QML module, so its plugin must be imported explicitly.
@@ -57,10 +60,26 @@ int main(int argc, char *argv[])
     const QCommandLineOption sizeOption(QStringLiteral("size"),
         QStringLiteral("Capture size to request, WIDTHxHEIGHT (default 640x480)."),
         QStringLiteral("size"), QStringLiteral("640x480"));
-    parser.addOptions({ cameraOption, patternOption, sizeOption });
+    const QCommandLineOption logFileOption(QStringLiteral("log-file"),
+        QStringLiteral("Also write the log to <file>, replacing it each run.%1")
+            .arg(QStringLiteral(PIVISION_DEV_LOG_FILE).isEmpty()
+                    ? QString()
+                    : QStringLiteral(" Default: %1").arg(QStringLiteral(PIVISION_DEV_LOG_FILE))),
+        QStringLiteral("file"), QStringLiteral(PIVISION_DEV_LOG_FILE));
+    const QCommandLineOption verboseOption(QStringLiteral("verbose"),
+        QStringLiteral("Include debug messages in the log."));
+    parser.addOptions({ cameraOption, patternOption, sizeOption, logFileOption, verboseOption });
     parser.addPositionalArgument(QStringLiteral("source"),
         QStringLiteral("Video file, stream URL or /dev/video* device."), QStringLiteral("[source]"));
     parser.process(app);
+
+    pivision::logging::install(parser.value(logFileOption));
+    if (parser.isSet(verboseOption))
+        pivision::logging::enableVerbose();
+    qCInfo(pivision::logging::lcApp, "pi-vision %s (Qt %s, OpenCV %s)",
+        PIVISION_VERSION, qVersion(), CV_VERSION);
+    if (!parser.value(logFileOption).isEmpty())
+        qCInfo(pivision::logging::lcApp) << "Logging to" << parser.value(logFileOption);
 
     const auto size = parseSize(parser.value(sizeOption));
     if (!size)

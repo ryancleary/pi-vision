@@ -5,8 +5,11 @@
 #include <QVariantMap>
 
 #include <pivision/capture/CameraDiscovery.h>
+#include <pivision/logging/Logging.h>
 
 namespace pivision::display {
+
+using logging::lcDisplay;
 
 namespace {
 
@@ -50,6 +53,7 @@ void SourceSelector::refresh()
     }
     sources.append(entry(QStringLiteral("Test pattern"), kTestPatternSpec));
 
+    qCDebug(lcDisplay) << "Found" << sources.size() - 1 << "camera(s)";
     if (sources != m_sources) {
         m_sources = sources;
         emit sourcesChanged();
@@ -65,6 +69,7 @@ void SourceSelector::select(const QString &spec)
     if (trimmed.startsWith(QStringLiteral("~/")))
         trimmed.replace(0, 1, QDir::homePath());
 
+    qCInfo(lcDisplay) << "Source selected:" << trimmed;
     if (trimmed == kTestPatternSpec)
         m_pipeline->setSource(capture::makeTestPatternSource(m_pattern));
     else
