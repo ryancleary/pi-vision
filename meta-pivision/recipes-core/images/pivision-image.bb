@@ -9,7 +9,7 @@ IMAGE_LINGUAS = ""
 
 # Development access: SSH with an empty root password.
 # Removed when the release image is split out.
-IMAGE_FEATURES += "ssh-server-dropbear allow-empty-password empty-root-password allow-root-login"
+IMAGE_FEATURES += "splash ssh-server-dropbear allow-empty-password empty-root-password allow-root-login"
 
 # Kernel modules each target needs. Most drivers are compiled into the kernel
 # (checked against each kernel's .config), so the default is none. A target

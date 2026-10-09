@@ -23,3 +23,21 @@ GROUPADD_PARAM:${PN} = "--system -f render; --system -f input"
 USERADD_PARAM:${PN} = "--system --no-create-home --home-dir /nonexistent \
     --shell /sbin/nologin --user-group --groups video,render,input pivision"
 
+# Boot straight into the app, with a failure screen if it can't start.
+SRC_URI += "file://pivision.service file://pivision-failed.service file://failed.qml"
+
+inherit systemd
+SYSTEMD_SERVICE:${PN} = "pivision.service"
+
+do_install:append() {
+    install -d ${D}${systemd_system_unitdir}
+    install -m 0644 ${WORKDIR}/pivision.service ${WORKDIR}/pivision-failed.service \
+        ${D}${systemd_system_unitdir}
+    install -d ${D}${datadir}/pivision
+    install -m 0644 ${WORKDIR}/failed.qml ${D}${datadir}/pivision
+}
+
+FILES:${PN} += "${datadir}/pivision ${systemd_system_unitdir}/pivision-failed.service"
+# The failure screen runs through the qml tool.
+RDEPENDS:${PN} += "qtdeclarative-tools"
+

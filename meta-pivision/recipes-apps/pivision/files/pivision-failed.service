@@ -1,0 +1,12 @@
+[Unit]
+Description=pi-vision failure screen
+
+[Service]
+User=pivision
+Environment=QT_QPA_PLATFORM=eglfs
+Environment=QT_QPA_EGLFS_INTEGRATION=eglfs_kms
+Environment=QML_XHR_ALLOW_FILE_READ=1
+# Save the app's last log lines where the screen can read them.
+ExecStartPre=+/bin/sh -c 'journalctl -u pivision.service -n 15 --no-pager -o cat > /run/pivision-failed.log; chmod 644 /run/pivision-failed.log'
+ExecStart=/usr/bin/qml /usr/share/pivision/failed.qml
+

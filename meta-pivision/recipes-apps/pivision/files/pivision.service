@@ -1,0 +1,26 @@
+[Unit]
+Description=pi-vision
+After=systemd-user-sessions.service
+# Take over the display from the login prompt.
+Conflicts=getty@tty1.service
+# After 3 failed starts in 60 s, give up and show the failure screen.
+StartLimitIntervalSec=60
+StartLimitBurst=3
+OnFailure=pivision-failed.service
+
+[Service]
+User=pivision
+RuntimeDirectory=pivision
+Environment=XDG_RUNTIME_DIR=/run/pivision
+Environment=QT_QPA_PLATFORM=eglfs
+Environment=QT_QPA_EGLFS_INTEGRATION=eglfs_kms
+# Close the splash screen before the app takes the display. "+" runs this
+# as root (the splash is root's); "-" ignores errors if it isn't running.
+ExecStartPre=-+/usr/bin/psplash-write QUIT
+ExecStart=/usr/bin/pivision
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+
