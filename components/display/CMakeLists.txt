@@ -12,12 +12,14 @@ qt_add_qml_module(pivision_display
         private/PipelineForeign.h
         private/ProcessingControl.h
         private/SourceSelector.h
+        private/UsbControl.h
         src/CaptureControl.cpp
         src/FrameView.cpp
         src/MetricsMonitor.cpp
         src/ProcessingControl.cpp
         src/Registration.cpp
         src/SourceSelector.cpp
+        src/UsbControl.cpp
 )
 
 target_include_directories(pivision_display

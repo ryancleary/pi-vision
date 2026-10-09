@@ -5,6 +5,7 @@
 #include "PipelineForeign.h"
 #include "ProcessingControl.h"
 #include "SourceSelector.h"
+#include "UsbControl.h"
 
 namespace pivision::display {
 
@@ -39,6 +40,12 @@ void exposeCaptures(pivision::pipeline::Pipeline *pipeline, const QString &direc
     CaptureControl::instance_ = new CaptureControl(pipeline, MetricsMonitor::instance_,
         ProcessingControl::instance_, pivision::snapshot::SnapshotStore(directory, keep), appVersion,
         pipeline);
+}
+
+void exposeUsb(const QString &mountRoot, const QString &captureDirectory,
+    const QString &crashDirectory, QObject *parent)
+{
+    UsbControl::instance_ = new UsbControl(mountRoot, captureDirectory, crashDirectory, parent);
 }
 
 } // namespace pivision::display

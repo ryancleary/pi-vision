@@ -34,7 +34,7 @@ Ways to run it:
   main.cpp owns it and calls exposePipeline() before loading QML.
 - Layering: capture (no Qt) -> pipeline (Qt, no QML) -> display (Qt Quick) -> app.
   system (no Qt) reads CPU use, temperature and Pi throttle flags; display uses it.
-- Compare UI: raw and processed frames shown side by side, as an overlay with an
+- Compare UI (overlay by default): raw and processed frames shown side by side, as an overlay with an
   opacity slider, or picture-in-picture (processed full, raw inset). One mode enum
   drives QML states/transitions. Design adapted from an earlier QML project of mine,
   rebuilt on two FrameViews instead of Qt Multimedia.
@@ -51,7 +51,14 @@ Ways to run it:
   newest 10 kept; --capture-dir / --capture-keep override. Written to a
   .partial- folder and renamed, so a copy never sees half a capture.
   `pv captures TARGET` copies new ones into logs/TARGET/captures/ (--card for a
-  mounted SD card); the app can also copy them to a USB stick.
+  mounted SD card).
+- USB: a udev rule (pivision-usb) has systemd-mount put FAT/exFAT sticks at
+  /run/media/<sdXN>, owned by pivision, mounted sync so a stick can be pulled
+  as soon as a copy finishes (no eject needed). The app polls the mount table
+  once a second; "Copy to USB" shows while a stick is in and copies new
+  captures and crash dumps to <stick>/pivision/{captures,crashes}. Desktop
+  builds look under /run/media/$USER (udisks). usb-storage, vfat, exfat and
+  NLS are built into the Pi kernel (usb-storage.cfg).
 - Crash partition budget (64 MB): 5 dumps x 8 MB journal max = 40 MB, plus 10
   captures at roughly 1 MB each.
 - Headless mode: process a file from the command line and write JSON. Used for tests and CI.
@@ -233,7 +240,7 @@ No AGPL models (rules out Ultralytics YOLO).
 - [x] Compare UI: side by side, overlay with opacity, picture-in-picture
 - [x] Metrics panel
 - [x] Capture button, storage on the crash partition, pv captures
-- [ ] Copy captures to USB from the app
+- [x] Copy captures to USB from the app
 - [ ] Detector thread and QML overlay
 - [ ] Headless mode
 - [ ] Rebuild the image and measure on the Pi

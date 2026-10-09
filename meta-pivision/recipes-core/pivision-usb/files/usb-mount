@@ -1,0 +1,23 @@
+#!/bin/sh
+# Mounts a USB stick for pi-vision. Run by udev (99-pivision-usb.rules) with
+# the kernel's name for the partition, e.g. sda1.
+#
+# systemd-mount asks systemd to do the mount, which is the supported way from
+# udev: a mount made by udev itself would be hidden in udev's own namespace,
+# and udev kills slow commands. systemd ties the mount to the device, so it is
+# unmounted when the stick is pulled; no remove rule is needed.
+#
+# Options:
+#   uid/gid, fmask/dmask  files belong to the pivision user (FAT has no owners)
+#   sync                  every write goes straight to the stick, so it's safe
+#                         to pull as soon as the app says the copy is done
+#   noexec,nosuid,nodev   nothing on the stick can run
+set -eu
+
+name=$1
+uid=$(id -u pivision)
+gid=$(id -g pivision)
+
+exec /usr/bin/systemd-mount --no-block --collect \
+    --options="uid=$uid,gid=$gid,fmask=0133,dmask=0022,sync,noexec,nosuid,nodev" \
+    "/dev/$name" "/run/media/$name"

@@ -20,7 +20,7 @@ Item {
         PictureInPicture
     }
 
-    property int mode: CompareView.ViewMode.SideBySide
+    property int mode: CompareView.ViewMode.Overlay
     property real overlayOpacity: 0.5
 
     // Side by side: two equal panes with a gap between them.
