@@ -240,8 +240,12 @@ int main(int argc, char *argv[])
     std::unique_ptr<pivision::app::WindowRecorder> recorder;
     if (parser.isSet(recordOption)) {
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
-        if (window)
+        if (window) {
             recorder = std::make_unique<pivision::app::WindowRecorder>(window, parser.value(recordOption));
+            // From the first video frame on; before it the window is empty.
+            QObject::connect(&pipeline, &pivision::pipeline::Pipeline::frameAvailable, recorder.get(),
+                &pivision::app::WindowRecorder::start, Qt::SingleShotConnection);
+        }
     }
 
     // systemctl stop sends SIGTERM; quit normally so it isn't counted as a crash.

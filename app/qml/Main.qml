@@ -12,6 +12,9 @@ ApplicationWindow {
     visible: true
     title: "pi-vision"
     color: Theme.background
+    // Every control inherits this, so text doesn't fall back to the system's
+    // default size, which differs between the desktop and the Pi.
+    font.pixelSize: Theme.fontSize
 
     // Dark theme for every Basic-style control.
     palette.window: Theme.panel

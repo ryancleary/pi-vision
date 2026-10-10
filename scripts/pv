@@ -802,13 +802,28 @@ def make_gif(args):
     if not any(frames.glob("frame-*.jpg")):
         fail(f"no frame-*.jpg in {frames}")
     output = Path(args.output) if args.output else frames.parent / "demo.gif"
+    # Each frame shown for as long as it really lasted (times.txt from the
+    # recorder; a Pi grabs below GIF_FPS), via ffmpeg's concat list with durations:
+    # https://ffmpeg.org/ffmpeg-formats.html#concat-1
+    images = sorted(frames.glob("frame-*.jpg"))
+    times_file = frames / "times.txt"
+    times = [int(line) for line in times_file.read_text().split()] if times_file.exists() else []
+    if len(times) != len(images):
+        times = [round(index * 1000 / GIF_FPS) for index in range(len(images))]
+    listing = frames / "frames.ffconcat"
+    entries = ["ffconcat version 1.0"]
+    for index, image in enumerate(images):
+        next_time = times[index + 1] if index + 1 < len(times) else times[index] + round(1000 / GIF_FPS)
+        entries += [f"file '{image.name}'", f"duration {(next_time - times[index]) / 1000:.3f}"]
+    entries.append(f"file '{images[-1].name}'")  # concat needs the last one again for its duration
+    listing.write_text("\n".join(entries) + "\n")
     # stats_mode=diff and diff_mode=rectangle favour what changes between frames
     # (the video), so the static UI doesn't eat the palette or the file size.
     filters = (f"scale={args.width}:-1:flags=lanczos,split[a][b];"
                f"[a]palettegen=max_colors={GIF_COLORS}:stats_mode=diff[p];"
                f"[b][p]paletteuse=dither=bayer:diff_mode=rectangle")
-    status = run(["ffmpeg", "-v", "error", "-y", "-framerate", str(GIF_FPS),
-                  "-i", str(frames / "frame-%05d.jpg"), "-vf", filters, str(output)])
+    status = run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-i", str(listing),
+                  "-vf", filters, str(output)])
     if status == 0:
         print(f"{output} ({human_size(output.stat().st_size)})")
     return status
