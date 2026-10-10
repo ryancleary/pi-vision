@@ -17,6 +17,7 @@ QtObject {
     readonly property int fontSize: 12
     readonly property int headingSize: 13
     readonly property int messageSize: 18
+    readonly property real messageWidthFraction: 0.8 // long messages wrap at 80% of the view
 
     // Layout
     readonly property int margin: 12
@@ -42,6 +43,12 @@ QtObject {
     readonly property int captionPadding: 4
     readonly property real captionOpacity: 0.7
     readonly property int transitionMs: 225
+
+    // Detection
+    readonly property color detectionBox: "#ffd23c"   // stands out on most scenes
+    readonly property color detectionLabelText: "#1b1f24"
+    readonly property color modelPadding: "#5a6470"   // what the model sees as padding
+    readonly property int detectionBoxWidth: 2
 
     // Messages
     readonly property int toastMs: 3000

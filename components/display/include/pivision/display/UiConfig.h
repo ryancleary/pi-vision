@@ -11,7 +11,7 @@ namespace pivision::display {
 
 // App layout settings, from app/config/ui.json (next to stages.json):
 //
-//   { "modeButtons": ["sideBySide", "overlay", "pictureInPicture"],
+//   { "modeButtons": ["sideBySide", "overlay", "pictureInPicture", "detection"],
 //     "defaultMode": "overlay" }
 //
 // modeButtons: the compare-mode buttons in the toolbar, left to right. Leave

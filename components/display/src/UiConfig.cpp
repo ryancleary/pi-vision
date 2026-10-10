@@ -10,7 +10,7 @@ namespace pivision::display {
 QStringList knownViewModes()
 {
     return { QStringLiteral("sideBySide"), QStringLiteral("overlay"),
-        QStringLiteral("pictureInPicture") };
+        QStringLiteral("pictureInPicture"), QStringLiteral("detection") };
 }
 
 std::optional<UiConfig> parseUiConfig(const QByteArray &json, QString *error)

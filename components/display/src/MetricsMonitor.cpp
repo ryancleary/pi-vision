@@ -91,6 +91,10 @@ QJsonObject MetricsMonitor::toJson()
         { QStringLiteral("stages"), stageTimes },
         { QStringLiteral("droppedBeforeProcessingPerSecond"), frames_.droppedBeforeProcessingPerSecond },
         { QStringLiteral("droppedBeforeDisplayPerSecond"), frames_.droppedBeforeDisplayPerSecond },
+        { QStringLiteral("detecting"), detecting() },
+        { QStringLiteral("detectionMs"), frames_.detectionMs },
+        { QStringLiteral("detectionsPerSecond"), frames_.detectionsPerSecond },
+        { QStringLiteral("detectionAgeMs"), frames_.detectionAgeMs },
         { QStringLiteral("cpuPercent"), cpuPercent_ },
         { QStringLiteral("cpuWindowSeconds"), cpu_.lastInterval().count() },
         // null where there's no sensor or it isn't a Pi

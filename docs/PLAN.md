@@ -52,6 +52,13 @@ Ways to run it:
   with the reason. Results carry the image they were computed on, so the UI can
   show either live video with the latest boxes or the detected frame itself.
   Metrics: time per detection, results per second, age of the shown boxes.
+- Detection mode UI: one pane, boxes with "label score%" drawn in QML from
+  fractions of the image (so they fit any view of it). Raw|Processed and
+  Live|Detected buttons along the pane's bottom edge (the toolbar is full).
+  Detected view draws the model's square input with its letterbox padding in
+  gray. Detection runs only while the mode is shown. Processed input is the
+  process size (320x240 by default); for a like-for-like comparison with raw on
+  the desktop, run with --process-size 640x480.
 - Captures: a button saves metrics + settings as JSON plus raw/processed PNGs,
   in numbered folders (no RTC on the Pi, so the number gives the order).
   Desktop: logs/captures/, all kept. Pi: /var/crash/captures (crash partition),

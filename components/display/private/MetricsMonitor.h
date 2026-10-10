@@ -46,6 +46,12 @@ class MetricsMonitor : public QObject {
     Q_PROPERTY(double droppedBeforeProcessing READ droppedBeforeProcessing NOTIFY updated)
     Q_PROPERTY(double droppedBeforeDisplay READ droppedBeforeDisplay NOTIFY updated)
 
+    // Detection, while it's on (Detection mode).
+    Q_PROPERTY(bool detecting READ detecting NOTIFY updated)
+    Q_PROPERTY(double detectionMs READ detectionMs NOTIFY updated)
+    Q_PROPERTY(double detectionsPerSecond READ detectionsPerSecond NOTIFY updated)
+    Q_PROPERTY(double detectionAgeMs READ detectionAgeMs NOTIFY updated)
+
     // Percent of one core; can exceed 100 on a multi-core CPU.
     Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY updated)
     Q_PROPERTY(bool hasTemperature READ hasTemperature NOTIFY updated)
@@ -72,6 +78,11 @@ public:
     QVariantList stages() const;
     double droppedBeforeProcessing() const { return frames_.droppedBeforeProcessingPerSecond; }
     double droppedBeforeDisplay() const { return frames_.droppedBeforeDisplayPerSecond; }
+
+    bool detecting() const { return pipeline_ && pipeline_->detectionEnabled(); }
+    double detectionMs() const { return frames_.detectionMs; }
+    double detectionsPerSecond() const { return frames_.detectionsPerSecond; }
+    double detectionAgeMs() const { return frames_.detectionAgeMs; }
 
     double cpuPercent() const { return cpuPercent_; }
     bool hasTemperature() const { return temperature_.has_value(); }

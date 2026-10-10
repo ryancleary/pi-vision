@@ -1,6 +1,7 @@
 #include <pivision/display/Registration.h>
 
 #include "CaptureControl.h"
+#include "DetectionControl.h"
 #include "MetricsMonitor.h"
 #include "PipelineForeign.h"
 #include "ProcessingControl.h"
@@ -52,6 +53,11 @@ void exposeUsb(const QString &mountRoot, const QString &captureDirectory,
 void exposeUiConfig(const UiConfig &config, QObject *parent)
 {
     UiSettings::instance_ = new UiSettings(config, parent);
+}
+
+void exposeDetection(pivision::pipeline::Pipeline *pipeline)
+{
+    DetectionControl::instance_ = new DetectionControl(pipeline, pipeline);
 }
 
 } // namespace pivision::display
