@@ -3,16 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore: &yocto-only
-      - 'meta-pivision/**'
-      - 'kas/**'
-      - 'targets/**'
-      - 'docs/**'
-      - '**.md'
-      - 'scripts/kas.sh'
-      - 'scripts/pv'
   pull_request:
-    paths-ignore: *yocto-only
 
 env:
   QT_VERSION: 6.8.3
@@ -63,6 +54,19 @@ jobs:
 
       - name: Set OPENCV_ROOT_DIR
         run: echo "OPENCV_ROOT_DIR=$HOME/opt/opencv" >> "$GITHUB_ENV"
+
+      # Model and test photo for the detection tests (pinned by SHA-256; the
+      # script skips what's already there, so the cache saves the download).
+      - name: Cache assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            assets/models/*.onnx
+            assets/media
+          key: assets-${{ hashFiles('scripts/fetch-assets.sh') }}
+
+      - name: Fetch assets
+        run: sh scripts/fetch-assets.sh
 
       - name: Configure
         run: cmake --preset debug

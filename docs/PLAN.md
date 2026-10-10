@@ -272,9 +272,14 @@ No AGPL models (rules out Ultralytics YOLO).
 - [x] Metrics panel
 - [x] Capture button, storage on the crash partition, pv captures
 - [x] Copy captures to USB from the app
-- [ ] Detector thread and QML overlay
+- [x] Detector thread and QML overlay
 - [ ] Headless mode
 - [ ] Rebuild the image and measure on the Pi
+  Image: OpenCV gains dnn (+ protobuf from meta-oe); pivision-model-nanodet
+  installs the .onnx and the app installs its .json, both in
+  /usr/share/pivision/models. To measure: Metrics tab with each stage alone and
+  in Detection mode (raw, then processed); a capture of each records the numbers.
+  Watch throttling: the Pi 3 slows down when hot, which skews timings.
 
 ### 5. Release
 - [ ] Image on GitHub Releases

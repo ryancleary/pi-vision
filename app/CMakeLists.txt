@@ -46,3 +46,10 @@ install(TARGETS pivision
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+# The detection model's description, where the app looks on the device
+# (/usr/share/pivision/models). The model file itself is installed by the
+# pivision-model-nanodet recipe, since it isn't in git.
+install(FILES ${PROJECT_SOURCE_DIR}/assets/models/nanodet-plus-m-1.5x-416.json
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/pivision/models
+)
+
