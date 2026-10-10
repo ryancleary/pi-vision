@@ -7,6 +7,7 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/dnn.hpp>
 
+#include <pivision/detection/Detection.h>
 #include <pivision/detection/ModelConfig.h>
 
 namespace pivision::detection {
@@ -34,6 +35,16 @@ public:
     // size, normalized per channel, laid out as a 1 x 3 x height x width
     // float blob.
     cv::Mat makeInputBlob(const cv::Mat &bgr) const;
+
+    // Runs the model on an input blob from makeInputBlob(). Returns its raw
+    // outputs, one Mat per output layer, in outputNames() order.
+    std::vector<cv::Mat> run(const cv::Mat &blob) const;
+
+    // Turns the raw outputs into candidate detections, in the pixels of the
+    // model's input: one per grid cell whose best class scores at least the
+    // model's scoreThreshold. Neighboring cells often find the same object,
+    // so duplicates remain; removing them (NMS) is a separate step.
+    std::vector<Detection> decode(const std::vector<cv::Mat> &outputs) const;
 
     // Maps a box in the model's input back onto the original frame, undoing
     // the resize (and the padding, for letterbox).

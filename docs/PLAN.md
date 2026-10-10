@@ -209,6 +209,10 @@ run TARGET (QEMU: KVM when available, snapshot by default, SSH on 2222, VNC on 5
 Targets are defined in targets/<name>.json (kas file, machine, image, delivery).
 build all runs desktop debug and release then every image, keeps going on failure,
 and logs each step to build-logs/<timestamp>/ with a summary.
+clean desktop [--preset], clean image TARGET [--recipe NAME] (bitbake -c cleansstate),
+clean all [--deep [-y]]. Without --deep, Yocto keeps downloads and sstate so a
+rebuild takes minutes; --deep removes all of yocto/ and the fetched assets. logs/
+is never cleaned.
 
 ## Assets
 

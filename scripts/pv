@@ -10,6 +10,7 @@
   scripts/pv stop TARGET                      stop a QEMU target started with run --background
   scripts/pv logs TARGET [options]            collect logs into logs/TARGET/ (see: logs --help)
   scripts/pv captures TARGET [options]        copy the app's captures into logs/TARGET/captures/
+  scripts/pv clean WHAT [options]             remove build output (see: clean --help)
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
 which stays the source of truth for the Yocto configuration.
@@ -33,7 +34,12 @@ REPO = Path(__file__).resolve().parent.parent
 TARGETS_DIR = REPO / "targets"
 LOG_ROOT = REPO / "build-logs"
 KAS = REPO / "scripts" / "kas.sh"
-DEPLOY_DIR = REPO / "yocto" / "build" / "tmp" / "deploy" / "images"
+YOCTO_DIR = REPO / "yocto"
+YOCTO_TMP_DIR = YOCTO_DIR / "build" / "tmp"
+DEPLOY_DIR = YOCTO_TMP_DIR / "deploy" / "images"
+DESKTOP_BUILD_DIR = REPO / "build"
+# Files scripts/fetch-assets.sh downloads; the model descriptions (*.json) are in git.
+FETCHED_ASSET_GLOBS = ["assets/models/*.onnx", "assets/media/*"]
 QEMU_STATE_DIR = LOG_ROOT / "qemu"
 DEVICE_LOG_ROOT = REPO / "logs"
 CRASH_DIR_ON_DEVICE = "/var/crash"
@@ -501,6 +507,69 @@ def copy_new_captures(source_dir, out_dir):
     return copied
 
 
+def remove(path):
+    """Deletes a file or folder if it exists; says what it removed."""
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    elif path.exists() or path.is_symlink():
+        path.unlink()
+    else:
+        return
+    print(f"removed {path.relative_to(REPO)}")
+
+
+def confirm(question, assume_yes):
+    if assume_yes:
+        return True
+    answer = input(f"{question} [y/N] ").strip().lower()
+    return answer in ("y", "yes")
+
+
+def clean_desktop(preset):
+    remove(DESKTOP_BUILD_DIR / preset if preset else DESKTOP_BUILD_DIR)
+
+
+def clean_image(target, recipe):
+    if recipe:
+        # One recipe: its build output and its shared-state cache entries, so
+        # the next build really rebuilds it rather than restoring it.
+        command = [str(KAS), "shell", target["kas"], "-c", f"bitbake -c cleansstate {shlex.quote(recipe)}"]
+        return 0 if run_step([command]) else 1
+    # Everything bitbake built, for all targets (they share one tmp). Downloads
+    # and the shared-state cache stay, so the next build restores most of it
+    # instead of compiling from scratch.
+    remove(YOCTO_TMP_DIR)
+    return 0
+
+
+def clean(args):
+    if args.what == "desktop":
+        clean_desktop(args.preset)
+        return 0
+    if args.what == "image":
+        if not args.target:
+            fail("clean image needs a target; see: scripts/pv targets")
+        return clean_image(get_target(args.target), args.recipe)
+
+    # all
+    clean_desktop(None)
+    remove(LOG_ROOT)
+    if not args.deep:
+        remove(YOCTO_TMP_DIR)
+        return 0
+    if not confirm("Remove all of yocto/ (layers, downloads, shared-state cache) and the "
+                   "fetched assets? The next image build starts from nothing and takes hours.",
+                   args.yes):
+        print("Nothing else removed.")
+        return 0
+    remove(YOCTO_DIR)
+    for pattern in FETCHED_ASSET_GLOBS:
+        for path in sorted(REPO.glob(pattern)):
+            if not path.name.startswith("."):  # keep .gitkeep
+                remove(path)
+    return 0
+
+
 def collect_captures(target, args):
     """Copies captures saved by the app into logs/TARGET/captures/, skipping ones already there.
 
@@ -596,6 +665,19 @@ def main():
     captures.add_argument("--host", help="device address (default: from the target file)")
     captures.add_argument("--port", type=int, help="SSH port (default: from the target file)")
 
+    cleaning = commands.add_parser(
+        "clean", help="remove build output",
+        description="desktop: build/ (or one preset). image TARGET: yocto's tmp output, keeping "
+                    "downloads and the shared-state cache, or with --recipe just that recipe. "
+                    "all: desktop, build-logs/ and yocto's tmp; with --deep also all of yocto/ and "
+                    "the fetched assets (asks first). logs/ is never touched.")
+    cleaning.add_argument("what", choices=["desktop", "image", "all"])
+    cleaning.add_argument("target", nargs="?", help="image target (for 'clean image')")
+    cleaning.add_argument("--preset", choices=DESKTOP_PRESETS, help="only this desktop preset")
+    cleaning.add_argument("--recipe", help="only this recipe (for 'clean image'), e.g. pivision")
+    cleaning.add_argument("--deep", action="store_true", help="for 'clean all': everything, see above")
+    cleaning.add_argument("-y", "--yes", action="store_true", help="don't ask before a deep clean")
+
     args = parser.parse_args()
 
     if args.command == "targets":
@@ -617,6 +699,9 @@ def main():
 
     if args.command == "captures":
         return collect_captures(get_target(args.target), args)
+
+    if args.command == "clean":
+        return clean(args)
 
     if args.what == "desktop":
         check_desktop_environment()

@@ -24,7 +24,7 @@ endif()
 message(STATUS "Using Qt ${Qt6_VERSION} from ${Qt6_DIR}")
 
 # Pinned to 4.9 to match Scarthgap. Never highgui: it may pull in a second Qt.
-find_package(OpenCV 4.9 REQUIRED COMPONENTS core imgproc videoio dnn
+find_package(OpenCV 4.9 REQUIRED COMPONENTS core imgproc imgcodecs videoio dnn
     HINTS "$ENV{OPENCV_ROOT_DIR}") # take the pinned install over the system one (Arch)
 if(OpenCV_VERSION VERSION_GREATER_EQUAL 5)
     message(FATAL_ERROR
