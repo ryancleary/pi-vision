@@ -34,10 +34,11 @@ Ways to run it:
   main.cpp owns it and calls exposePipeline() before loading QML.
 - Layering: capture (no Qt) -> pipeline (Qt, no QML) -> display (Qt Quick) -> app.
   system (no Qt) reads CPU use, temperature and Pi throttle flags; display uses it.
-- Compare UI (overlay by default; button order is modeButtonOrder in Main.qml): raw and processed frames shown side by side, as an overlay with an
+- Compare UI: raw and processed frames shown side by side, as an overlay with an
   opacity slider, or picture-in-picture (processed full, raw inset). One mode enum
   drives QML states/transitions. Design adapted from an earlier QML project of mine,
-  rebuilt on two FrameViews instead of Qt Multimedia.
+  rebuilt on two FrameViews instead of Qt Multimedia. Starting mode and button
+  order are in app/config/ui.json, built in like stages.json.
 - QML colors/sizes live in one Theme.qml singleton. QML files in app/qml/ need
   `import PiVision` to see it: they sit in a subfolder of the module, and the
   implicit folder import doesn't pick up singletons.
@@ -123,10 +124,15 @@ Checked by .clang-tidy (clangd shows violations in the editor).
   std::chrono::round) or a small function whose name says what it does, with a
   comment on why. No unexplained arithmetic.
 - No anonymous namespaces. Helpers live in pivision::<component>:
-  private/Utilities.h for ones only that component uses, the utils component
+  private/Utils.h for ones only that component uses, the utils component
   (pivision::utils: Images.h, Strings.h, Files.h) for ones several use. The app
-  has src/Utilities.h in pivision::app.
+  has src/Utils.h in pivision::app.
 - Constants that belong to a class are static constexpr members in its header.
+- Test names follow Gherkin: Given<state>_When<action>_Then<outcome>, e.g.
+  TEST_F(StageChainTest, GivenNoEnabledStages_WhenRunning_ThenOutputEqualsInput).
+  GoogleTest advises against underscores in names because Suite_Test pairs can
+  collide (https://google.github.io/googletest/faq.html); suite names here
+  never contain one, so they can't.
 - Test helpers are members of a fixture class (class FooTest : public
   ::testing::Test) used with TEST_F; helpers shared by several test files go
   in testsupport.

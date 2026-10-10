@@ -10,7 +10,7 @@
 #include <pivision/logging/Logging.h>
 #include <pivision/utils/Files.h>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::snapshot {
 

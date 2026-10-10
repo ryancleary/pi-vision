@@ -4,7 +4,7 @@
 #include <iterator>
 #include <numeric>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::pipeline {
 

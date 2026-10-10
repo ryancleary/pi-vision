@@ -1,7 +1,7 @@
 qt_add_executable(pivision
     src/main.cpp
-    src/Utilities.cpp
-    src/Utilities.h
+    src/Utils.cpp
+    src/Utils.h
 )
 
 # Shared colors and sizes, used as "Theme" from any QML file in the module.
@@ -23,7 +23,7 @@ qt_add_qml_module(pivision
 # changing it means rebuilding.
 qt_add_resources(pivision "config"
     PREFIX /pivision
-    FILES config/stages.json
+    FILES config/stages.json config/ui.json
 )
 
 target_link_libraries(pivision PRIVATE

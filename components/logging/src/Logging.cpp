@@ -4,7 +4,7 @@
 #include <QFileInfo>
 #include <QMutexLocker>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::logging {
 

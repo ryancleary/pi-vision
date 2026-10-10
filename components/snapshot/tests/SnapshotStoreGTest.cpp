@@ -27,7 +27,7 @@ protected:
     }
 };
 
-TEST_F(SnapshotStoreTest, SavesImagesAndInfo)
+TEST_F(SnapshotStoreTest, GivenAnEmptyStore_WhenSaving_ThenTheFolderHoldsBothImagesAndTheInfo)
 {
     QTemporaryDir root;
     const SnapshotStore store(root.filePath(QStringLiteral("captures")), 0);
@@ -48,7 +48,7 @@ TEST_F(SnapshotStoreTest, SavesImagesAndInfo)
     EXPECT_FALSE(info.value(QStringLiteral("time")).toString().isEmpty());
 }
 
-TEST_F(SnapshotStoreTest, NumbersFollowTheNewestEvenAfterPruning)
+TEST_F(SnapshotStoreTest, GivenAKeepLimit_WhenSavingPastIt_ThenOldestArePrunedAndNumberingContinues)
 {
     QTemporaryDir root;
     const SnapshotStore store(root.path(), 2);
@@ -61,7 +61,7 @@ TEST_F(SnapshotStoreTest, NumbersFollowTheNewestEvenAfterPruning)
     EXPECT_TRUE(names.at(1).startsWith(QStringLiteral("000004_")));
 }
 
-TEST_F(SnapshotStoreTest, KeepZeroKeepsEverything)
+TEST_F(SnapshotStoreTest, GivenKeepZero_WhenSavingMany_ThenAllAreKept)
 {
     QTemporaryDir root;
     const SnapshotStore store(root.path(), 0);
@@ -70,7 +70,7 @@ TEST_F(SnapshotStoreTest, KeepZeroKeepsEverything)
     EXPECT_EQ(store.list().size(), 12);
 }
 
-TEST_F(SnapshotStoreTest, OtherFilesAreLeftAlone)
+TEST_F(SnapshotStoreTest, GivenOtherFoldersAndALeftoverPartial_WhenSaving_ThenOthersStayAndThePartialIsRemoved)
 {
     // On the Pi, captures share the crash partition with crash dumps.
     QTemporaryDir root;
@@ -85,7 +85,7 @@ TEST_F(SnapshotStoreTest, OtherFilesAreLeftAlone)
     EXPECT_EQ(store.list().size(), 1);
 }
 
-TEST_F(SnapshotStoreTest, UnwritableDirectoryReportsAnError)
+TEST_F(SnapshotStoreTest, GivenAnUnwritableDirectory_WhenSaving_ThenAnErrorIsReported)
 {
     const SnapshotStore store(QStringLiteral("/proc/pivision-captures"), 0);
     const SaveResult result = saveOne(store);

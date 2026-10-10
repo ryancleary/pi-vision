@@ -1,5 +1,5 @@
 # Small helpers used by more than one component. Helpers only one component
-# needs live in that component's private/Utilities.h instead.
+# needs live in that component's private/Utils.h instead.
 add_library(pivision_utils STATIC
     include/pivision/utils/Files.h
     include/pivision/utils/Images.h

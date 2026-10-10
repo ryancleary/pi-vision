@@ -20,7 +20,7 @@ protected:
     }
 };
 
-TEST_F(FrameMetricsTest, EmptyWindowIsAllZero)
+TEST_F(FrameMetricsTest, GivenNoFrames_WhenTakingASnapshot_ThenEverythingIsZero)
 {
     const FrameMetrics metrics;
     const MetricsSnapshot snapshot = metrics.snapshot(FrameMetrics::Clock::now());
@@ -30,7 +30,7 @@ TEST_F(FrameMetricsTest, EmptyWindowIsAllZero)
     EXPECT_TRUE(snapshot.stages.empty());
 }
 
-TEST_F(FrameMetricsTest, RatesAndLatencyFromSteadyFrames)
+TEST_F(FrameMetricsTest, GivenSteadyFrames_WhenTakingASnapshot_ThenRatesLatencyAndDropsMatch)
 {
     FrameMetrics metrics;
     const FrameMetrics::Clock::time_point start = FrameMetrics::Clock::now();
@@ -50,7 +50,7 @@ TEST_F(FrameMetricsTest, RatesAndLatencyFromSteadyFrames)
     EXPECT_EQ(snapshot.droppedBeforeDisplayPerSecond, 0.0);
 }
 
-TEST_F(FrameMetricsTest, StageTimesAveragedInOrder)
+TEST_F(FrameMetricsTest, GivenStageTimings_WhenTakingASnapshot_ThenEachStageIsAveragedInOrder)
 {
     FrameMetrics metrics;
     const FrameMetrics::Clock::time_point start = FrameMetrics::Clock::now();
@@ -66,7 +66,7 @@ TEST_F(FrameMetricsTest, StageTimesAveragedInOrder)
     EXPECT_NEAR(snapshot.stagesMs, 8.0, 1e-9);
 }
 
-TEST_F(FrameMetricsTest, OldFramesLeaveTheWindow)
+TEST_F(FrameMetricsTest, GivenOnlyOldFrames_WhenTakingASnapshot_ThenTheyAreOutsideTheWindow)
 {
     FrameMetrics metrics(std::chrono::milliseconds(1000));
     const FrameMetrics::Clock::time_point start = FrameMetrics::Clock::now();
@@ -79,7 +79,7 @@ TEST_F(FrameMetricsTest, OldFramesLeaveTheWindow)
     EXPECT_EQ(snapshot.latencyMs, 0.0);
 }
 
-TEST_F(FrameMetricsTest, ClearForgetsFrames)
+TEST_F(FrameMetricsTest, GivenFrames_WhenCleared_ThenTheSnapshotIsEmpty)
 {
     FrameMetrics metrics;
     const FrameMetrics::Clock::time_point start = FrameMetrics::Clock::now();

@@ -1,5 +1,5 @@
-#ifndef PIVISION_CAPTURE_UTILITIES_H
-#define PIVISION_CAPTURE_UTILITIES_H
+#ifndef PIVISION_CAPTURE_UTILS_H
+#define PIVISION_CAPTURE_UTILS_H
 
 #include <optional>
 #include <string>
@@ -11,4 +11,4 @@ std::optional<int> deviceNumber(const std::string &filename);
 
 } // namespace pivision::capture
 
-#endif // PIVISION_CAPTURE_UTILITIES_H
+#endif // PIVISION_CAPTURE_UTILS_H

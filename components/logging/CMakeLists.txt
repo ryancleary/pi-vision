@@ -1,8 +1,8 @@
 add_library(pivision_logging STATIC
     include/pivision/logging/Logging.h
-    private/Utilities.h
+    private/Utils.h
     src/Logging.cpp
-    src/Utilities.cpp
+    src/Utils.cpp
 )
 add_library(pivision::logging ALIAS pivision_logging)
 

@@ -26,13 +26,13 @@ protected:
     }
 };
 
-TEST_F(StageChainTest, KeepsTheOrderStagesWereAddedIn)
+TEST_F(StageChainTest, GivenStagesAdded_WhenListingTheOrder_ThenItIsTheOrderAdded)
 {
     StageChain chain = fullChain(false);
     EXPECT_EQ(chain.order(), (std::vector<std::string> { "clahe", "grayscale", "blur", "edges" }));
 }
 
-TEST_F(StageChainTest, WithNothingEnabledOutputEqualsInput)
+TEST_F(StageChainTest, GivenNoEnabledStages_WhenRunning_ThenOutputEqualsInput)
 {
     StageChain chain = fullChain(false);
     EXPECT_FALSE(chain.anyEnabled());
@@ -45,7 +45,7 @@ TEST_F(StageChainTest, WithNothingEnabledOutputEqualsInput)
     EXPECT_TRUE(timings.empty());
 }
 
-TEST_F(StageChainTest, RunsOnlyEnabledStagesInOrderAndTimesThem)
+TEST_F(StageChainTest, GivenSomeEnabledStages_WhenRunning_ThenOnlyThoseRunInOrderAndAreTimed)
 {
     StageChain chain = fullChain(false);
     ASSERT_TRUE(chain.setEnabled("blur", true));
@@ -62,7 +62,7 @@ TEST_F(StageChainTest, RunsOnlyEnabledStagesInOrderAndTimesThem)
     EXPECT_EQ(out.channels(), 1);
 }
 
-TEST_F(StageChainTest, OutputIsIndependentOfLaterRuns)
+TEST_F(StageChainTest, GivenAnOutput_WhenTheChainRunsAgain_ThenTheEarlierOutputIsUnchanged)
 {
     StageChain chain = fullChain(false);
     chain.setEnabled("blur", true);
@@ -76,7 +76,7 @@ TEST_F(StageChainTest, OutputIsIndependentOfLaterRuns)
     EXPECT_EQ(cv::norm(first, saved, cv::NORM_L1), 0.0);
 }
 
-TEST_F(StageChainTest, UnknownIdsAreReported)
+TEST_F(StageChainTest, GivenUnknownIds_WhenSettingThem_ThenFailureIsReported)
 {
     StageChain chain = fullChain(true);
     EXPECT_FALSE(chain.setEnabled("sharpen", true));
@@ -85,7 +85,7 @@ TEST_F(StageChainTest, UnknownIdsAreReported)
     EXPECT_TRUE(chain.setParameter("blur", "size", 9.0));
 }
 
-TEST_F(StageChainTest, FullChainEndsInAnEdgeMap)
+TEST_F(StageChainTest, GivenEveryStageEnabled_WhenRunning_ThenTheOutputIsAnEdgeMap)
 {
     StageChain chain = fullChain(true);
     cv::Mat out;

@@ -3,12 +3,12 @@ add_library(pivision_processing STATIC
     include/pivision/processing/StageChain.h
     include/pivision/processing/StageFactory.h
     private/BuiltinStages.h
-    private/Utilities.h
+    private/Utils.h
     src/BuiltinStages.cpp
     src/Stage.cpp
     src/StageChain.cpp
     src/StageFactory.cpp
-    src/Utilities.cpp
+    src/Utils.cpp
 )
 add_library(pivision::processing ALIAS pivision_processing)
 

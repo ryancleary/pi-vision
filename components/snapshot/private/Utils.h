@@ -1,5 +1,5 @@
-#ifndef PIVISION_SNAPSHOT_UTILITIES_H
-#define PIVISION_SNAPSHOT_UTILITIES_H
+#ifndef PIVISION_SNAPSHOT_UTILS_H
+#define PIVISION_SNAPSHOT_UTILS_H
 
 #include <QRegularExpression>
 #include <QString>
@@ -19,4 +19,4 @@ QString partialFolderName(const QString &name);
 
 } // namespace pivision::snapshot
 
-#endif // PIVISION_SNAPSHOT_UTILITIES_H
+#endif // PIVISION_SNAPSHOT_UTILS_H

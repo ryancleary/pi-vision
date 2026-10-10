@@ -18,6 +18,7 @@ yocto/
 # Fetched assets (downloaded by scripts/fetch-assets.sh, verified by SHA256)
 assets/models/*
 !assets/models/.gitkeep
+!assets/models/*.json
 assets/media/*
 !assets/media/.gitkeep
 

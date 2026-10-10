@@ -1,8 +1,8 @@
 add_library(pivision_system STATIC
     include/pivision/system/SystemProbe.h
-    private/Utilities.h
+    private/Utils.h
     src/SystemProbe.cpp
-    src/Utilities.cpp
+    src/Utils.cpp
 )
 add_library(pivision::system ALIAS pivision_system)
 

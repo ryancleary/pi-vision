@@ -13,7 +13,7 @@
 
 #include "MetricsMonitor.h"
 #include "ProcessingControl.h"
-#include "Utilities.h"
+#include "Utils.h"
 
 namespace pivision::display {
 

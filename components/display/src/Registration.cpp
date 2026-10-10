@@ -5,6 +5,7 @@
 #include "PipelineForeign.h"
 #include "ProcessingControl.h"
 #include "SourceSelector.h"
+#include "UiSettings.h"
 #include "UsbControl.h"
 
 namespace pivision::display {
@@ -46,6 +47,11 @@ void exposeUsb(const QString &mountRoot, const QString &captureDirectory,
     const QString &crashDirectory, QObject *parent)
 {
     UsbControl::instance_ = new UsbControl(mountRoot, captureDirectory, crashDirectory, parent);
+}
+
+void exposeUiConfig(const UiConfig &config, QObject *parent)
+{
+    UiSettings::instance_ = new UiSettings(config, parent);
 }
 
 } // namespace pivision::display

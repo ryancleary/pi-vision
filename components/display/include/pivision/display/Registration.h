@@ -6,6 +6,7 @@
 #include <QString>
 
 #include <pivision/capture/SourceFactory.h>
+#include <pivision/display/UiConfig.h>
 #include <pivision/pipeline/StageConfig.h>
 
 namespace pivision::pipeline {
@@ -45,6 +46,10 @@ void exposeCaptures(pivision::pipeline::Pipeline *pipeline, const QString &direc
 // loading any QML; owned by `parent`.
 void exposeUsb(const QString &mountRoot, const QString &captureDirectory,
     const QString &crashDirectory, QObject *parent);
+
+// Makes the app layout settings (ui.json) available to QML as the singleton
+// `UiConfig`. Call before loading any QML; owned by `parent`.
+void exposeUiConfig(const UiConfig &config, QObject *parent);
 
 // Makes the metrics panel's backend available to QML as the singleton
 // `MetricsMonitor`, reading `pipeline` and naming stages from `stages`.

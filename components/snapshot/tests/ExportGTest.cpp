@@ -20,7 +20,7 @@ protected:
     }
 };
 
-TEST_F(ExportTest, CopiesOnlyWhatIsNew)
+TEST_F(ExportTest, GivenSomeFoldersAlreadyExported_WhenExportingAgain_ThenOnlyNewFoldersAreCopied)
 {
     QTemporaryDir from;
     QTemporaryDir to;
@@ -40,7 +40,7 @@ TEST_F(ExportTest, CopiesOnlyWhatIsNew)
     EXPECT_EQ(second.skipped, 2);
 }
 
-TEST_F(ExportTest, MissingSourceCopiesNothing)
+TEST_F(ExportTest, GivenNoSourceFolder_WhenExporting_ThenNothingIsCopiedAndNoErrorIsReported)
 {
     QTemporaryDir to;
     const ExportResult result = exportNumberedFolders(QStringLiteral("/nonexistent/pivision"), to.path());
@@ -48,7 +48,7 @@ TEST_F(ExportTest, MissingSourceCopiesNothing)
     EXPECT_EQ(result.copied, 0);
 }
 
-TEST_F(ExportTest, UnwritableDestinationReportsAnError)
+TEST_F(ExportTest, GivenAnUnwritableDestination_WhenExporting_ThenAnErrorIsReported)
 {
     QTemporaryDir from;
     makeFolder(from.path(), QStringLiteral("000001_a"));
@@ -56,7 +56,7 @@ TEST_F(ExportTest, UnwritableDestinationReportsAnError)
     EXPECT_FALSE(result.ok());
 }
 
-TEST_F(ExportTest, MountPointsDirectlyBelowRoot)
+TEST_F(ExportTest, GivenMountPointsAtVariousDepths_WhenFilteringByRoot_ThenOnlyDirectChildrenRemain)
 {
     const QStringList mounts { QStringLiteral("/"), QStringLiteral("/run/media"),
         QStringLiteral("/run/media/sdb1"), QStringLiteral("/run/media/sda1"),

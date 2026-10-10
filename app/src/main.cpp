@@ -17,7 +17,7 @@
 #include <pivision/pipeline/Pipeline.h>
 #include <pivision/pipeline/StageConfig.h>
 
-#include "Utilities.h"
+#include "Utils.h"
 
 // PiVision.Display is a static QML module, so its plugin must be imported explicitly.
 Q_IMPORT_QML_PLUGIN(PiVision_DisplayPlugin)
@@ -101,6 +101,17 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    // Layout settings (toolbar mode buttons, starting mode), likewise built in.
+    QFile uiFile(QStringLiteral(":/pivision/config/ui.json"));
+    QString uiError;
+    const auto ui = uiFile.open(QIODevice::ReadOnly)
+        ? pivision::display::parseUiConfig(uiFile.readAll(), &uiError)
+        : std::nullopt;
+    if (!ui) {
+        qCCritical(pivision::logging::lcApp) << "Invalid ui.json:" << uiError;
+        return EXIT_FAILURE;
+    }
+
     pivision::capture::CameraConfig camera;
     camera.width = size->width();
     camera.height = size->height();
@@ -137,6 +148,7 @@ int main(int argc, char *argv[])
     qCInfo(pivision::logging::lcApp, "Processing at up to %dx%d with %lld stage(s)",
         processSize->width(), processSize->height(), static_cast<long long>(stages->size()));
     pivision::display::exposePipeline(&pipeline);
+    pivision::display::exposeUiConfig(*ui, &pipeline);
     pivision::display::exposeSourceSelector(&pipeline, camera, pattern);
     pivision::display::exposeProcessingControl(&pipeline, *stages);
     pivision::display::exposeMetricsMonitor(&pipeline, *stages);

@@ -1,5 +1,5 @@
-#ifndef PIVISION_LOGGING_UTILITIES_H
-#define PIVISION_LOGGING_UTILITIES_H
+#ifndef PIVISION_LOGGING_UTILS_H
+#define PIVISION_LOGGING_UTILS_H
 
 #include <QFile>
 #include <QMutex>
@@ -29,4 +29,4 @@ void messageHandler(QtMsgType type, const QMessageLogContext &context, const QSt
 
 } // namespace pivision::logging
 
-#endif // PIVISION_LOGGING_UTILITIES_H
+#endif // PIVISION_LOGGING_UTILS_H

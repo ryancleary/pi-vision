@@ -36,7 +36,7 @@ protected:
     };
 };
 
-TEST_F(SystemProbeTest, TemperatureIsInDegrees)
+TEST_F(SystemProbeTest, GivenAThermalZone_WhenReadingTemperature_ThenItIsInDegrees)
 {
     const FakeSysfs sysfs("temp");
     sysfs.write("class/thermal/thermal_zone0/temp", "48312");
@@ -45,13 +45,13 @@ TEST_F(SystemProbeTest, TemperatureIsInDegrees)
     EXPECT_NEAR(*celsius, 48.312, 1e-9);
 }
 
-TEST_F(SystemProbeTest, NoThermalZoneMeansNoTemperature)
+TEST_F(SystemProbeTest, GivenNoThermalZone_WhenReadingTemperature_ThenThereIsNone)
 {
     const FakeSysfs sysfs("nothermal");
     EXPECT_FALSE(readTemperatureCelsius(sysfs.root()).has_value());
 }
 
-TEST_F(SystemProbeTest, ThrottleFlagsParseWithOrWithoutPrefix)
+TEST_F(SystemProbeTest, GivenHexWithOrWithoutPrefix_WhenReadingThrottleFlags_ThenBothParse)
 {
     const FakeSysfs sysfs("throttle");
     sysfs.write("devices/platform/soc/soc:firmware/get_throttled", "50005");
@@ -60,13 +60,13 @@ TEST_F(SystemProbeTest, ThrottleFlagsParseWithOrWithoutPrefix)
     EXPECT_EQ(readThrottleFlags(sysfs.root()), 0x4U);
 }
 
-TEST_F(SystemProbeTest, NotAPiMeansNoThrottleFlags)
+TEST_F(SystemProbeTest, GivenNoFirmwareFile_WhenReadingThrottleFlags_ThenThereAreNone)
 {
     const FakeSysfs sysfs("notpi");
     EXPECT_FALSE(readThrottleFlags(sysfs.root()).has_value());
 }
 
-TEST_F(SystemProbeTest, ThrottleFlagsDecode)
+TEST_F(SystemProbeTest, GivenThrottleFlags_WhenDecoding_ThenNowAndSinceBootConditionsAreNamed)
 {
     // 0x50005: under-voltage and throttled now; both have also occurred since boot.
     const std::vector<std::string> active = activeThrottleConditions(0x50005);
@@ -76,7 +76,7 @@ TEST_F(SystemProbeTest, ThrottleFlagsDecode)
     EXPECT_TRUE(activeThrottleConditions(0).empty());
 }
 
-TEST_F(SystemProbeTest, CpuUsageIsNonNegative)
+TEST_F(SystemProbeTest, GivenSomeWork_WhenSamplingCpuUsage_ThenItIsNotNegative)
 {
     CpuUsage usage;
     // Burn a little CPU so the interval isn't empty.
