@@ -1,8 +1,10 @@
 add_library(pivision_detection STATIC
     include/pivision/detection/Detection.h
+    include/pivision/detection/Detector.h
     include/pivision/detection/ModelConfig.h
     private/ObjectDetector.h
     private/Utils.h
+    src/Detector.cpp
     src/ModelConfig.cpp
     src/ObjectDetector.cpp
     src/Utils.cpp

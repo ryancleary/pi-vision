@@ -16,6 +16,34 @@ void FrameMetrics::add(const DisplayFrame &frame, Clock::time_point shown, const
         samples_.pop_front();
 }
 
+void FrameMetrics::addDetection(const DetectionResult &result, Clock::time_point arrived)
+{
+    detections_.push_back(DetectionSample { arrived, result.captured, result.milliseconds });
+    while (!detections_.empty() && detections_.front().arrived < arrived - detectionWindow_)
+        detections_.pop_front();
+}
+
+void FrameMetrics::fillDetectionStatistics(MetricsSnapshot &result, Clock::time_point now) const
+{
+    const auto first = std::find_if(detections_.begin(), detections_.end(),
+        [this, now](const DetectionSample &sample) { return sample.arrived >= now - detectionWindow_; });
+    const auto count = std::distance(first, detections_.end());
+    if (count == 0)
+        return;
+
+    const double totalMs = std::accumulate(first, detections_.end(), 0.0,
+        [](double total, const DetectionSample &sample) { return total + sample.milliseconds; });
+    result.detectionMs = totalMs / static_cast<double>(count);
+    if (count >= 2) {
+        result.detectionsPerSecond
+            = ratePerSecond(static_cast<double>(count - 1), detections_.back().arrived - first->arrived);
+    }
+    // How long ago the frame behind the newest boxes was captured: the delay
+    // between the live picture and the boxes drawn on it.
+    result.detectionAgeMs
+        = std::chrono::duration<double, std::milli>(now - detections_.back().captured).count();
+}
+
 MetricsSnapshot FrameMetrics::snapshot(Clock::time_point now) const
 {
     // Samples inside the window; they are in time order, so it's a suffix.
@@ -24,6 +52,7 @@ MetricsSnapshot FrameMetrics::snapshot(Clock::time_point now) const
     const auto count = std::distance(first, samples_.end());
 
     MetricsSnapshot result;
+    fillDetectionStatistics(result, now);
     if (count == 0)
         return result;
 

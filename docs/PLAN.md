@@ -46,6 +46,12 @@ Ways to run it:
   fps, capture-to-UI latency, per-stage times, dropped frames/s, process CPU,
   SoC temp, Pi throttle flags. Averaged over 1 s (FrameMetrics in pipeline),
   refreshed 4x/s, only while the tab is visible.
+- Detection: its own thread, fed the newest raw or processed frame by the
+  processing thread (frames are skipped while it's busy). Model loads the
+  first time detection is enabled; a missing model sets the state to Failed
+  with the reason. Results carry the image they were computed on, so the UI can
+  show either live video with the latest boxes or the detected frame itself.
+  Metrics: time per detection, results per second, age of the shown boxes.
 - Captures: a button saves metrics + settings as JSON plus raw/processed PNGs,
   in numbered folders (no RTC on the Pi, so the number gives the order).
   Desktop: logs/captures/, all kept. Pi: /var/crash/captures (crash partition),

@@ -8,6 +8,7 @@
 #include <opencv2/dnn.hpp>
 
 #include <pivision/detection/Detection.h>
+#include <pivision/detection/Detector.h>
 #include <pivision/detection/ModelConfig.h>
 
 namespace pivision::detection {
@@ -23,13 +24,13 @@ namespace pivision::detection {
 // different output format would need its own decoding.
 // OpenCV DNN API used here (Image2BlobParams, blobFromImageWithParams):
 //     https://docs.opencv.org/4.9.0/d9/d3c/structcv_1_1dnn_1_1Image2BlobParams.html
-class ObjectDetector {
+class ObjectDetector : public Detector {
 public:
     // Loads the model file named in `config`. Throws cv::Exception if it
     // can't be read.
     explicit ObjectDetector(ModelConfig config);
 
-    const ModelConfig &config() const { return config_; }
+    const ModelConfig &config() const override { return config_; }
 
     // Turns an 8-bit BGR frame into the model's input: fitted to the input
     // size, normalized per channel, laid out as a 1 x 3 x height x width
@@ -45,6 +46,16 @@ public:
     // model's scoreThreshold. Neighboring cells often find the same object,
     // so duplicates remain; removing them (NMS) is a separate step.
     std::vector<Detection> decode(const std::vector<cv::Mat> &outputs) const;
+
+    // Removes duplicates ("non-maximum suppression", NMS): where boxes of the
+    // same class overlap by more than the model's nmsThreshold, only the
+    // highest-scoring one is kept. Result is sorted by score, highest first.
+    std::vector<Detection> suppressDuplicates(const std::vector<Detection> &candidates) const;
+
+    // The whole job: finds objects in an 8-bit BGR frame. Prepares the input,
+    // runs the model, decodes, removes duplicates, and maps each box onto the
+    // frame. Boxes are in the frame's pixels.
+    std::vector<Detection> detect(const cv::Mat &bgr) const override;
 
     // Maps a box in the model's input back onto the original frame, undoing
     // the resize (and the padding, for letterbox).

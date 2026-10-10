@@ -3,6 +3,7 @@
 #include <optional>
 
 #include <QCommandLineParser>
+#include <QDir>
 #include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -61,10 +62,17 @@ int main(int argc, char *argv[])
         QStringLiteral("Look for USB sticks mounted directly below <dir> (default %1).")
             .arg(storage.usbRoot),
         QStringLiteral("dir"), storage.usbRoot);
+    const QString defaultModel
+        = QDir(storage.modelDirectory).filePath(QString::fromLatin1(pivision::app::kDefaultModelDescription));
+    const QCommandLineOption modelOption(QStringLiteral("model"),
+        QStringLiteral("Detection model description <file>; the model file sits next to it "
+                       "(default %1).")
+            .arg(defaultModel),
+        QStringLiteral("file"), defaultModel);
     const QCommandLineOption verboseOption(QStringLiteral("verbose"),
         QStringLiteral("Include debug messages in the log."));
     parser.addOptions({ cameraOption, patternOption, sizeOption, processSizeOption, logFileOption,
-        captureDirOption, captureKeepOption, usbRootOption, verboseOption });
+        captureDirOption, captureKeepOption, usbRootOption, modelOption, verboseOption });
     parser.addPositionalArgument(QStringLiteral("source"),
         QStringLiteral("Video file, stream URL or /dev/video* device."), QStringLiteral("[source]"));
     parser.process(app);
@@ -145,6 +153,8 @@ int main(int argc, char *argv[])
     pivision::pipeline::Pipeline pipeline(std::move(source));
     pipeline.setStages(*stages);
     pipeline.setProcessSize(*processSize);
+    // Loaded the first time Detection mode is used.
+    pipeline.setModelDescription(parser.value(modelOption));
     qCInfo(pivision::logging::lcApp, "Processing at up to %dx%d with %lld stage(s)",
         processSize->width(), processSize->height(), static_cast<long long>(stages->size()));
     pivision::display::exposePipeline(&pipeline);

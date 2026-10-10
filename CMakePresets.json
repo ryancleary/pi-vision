@@ -10,7 +10,8 @@
         "CMAKE_PREFIX_PATH": "$env{QT_ROOT_DIR};$env{OPENCV_ROOT_DIR}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "PIVISION_DEV_LOG_FILE": "${sourceDir}/logs/desktop/pivision.log",
-        "PIVISION_DEV_CAPTURE_DIR": "${sourceDir}/logs/captures"
+        "PIVISION_DEV_CAPTURE_DIR": "${sourceDir}/logs/captures",
+        "PIVISION_DEV_MODEL_DIR": "${sourceDir}/assets/models"
       }
     },
     {

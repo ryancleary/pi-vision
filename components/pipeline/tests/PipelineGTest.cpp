@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <functional>
 
 #include <QElapsedTimer>
@@ -52,6 +53,47 @@ protected:
         config.id = QString::fromLatin1(id);
         config.enabled = enabled;
         return config;
+    }
+
+    // The detection model (scripts/fetch-assets.sh fetches the .onnx next to it).
+    static QString modelDescription()
+    {
+        return QStringLiteral(PIVISION_MODEL_DIR "/nanodet-plus-m-1.5x-416.json");
+    }
+
+    static bool modelFetched()
+    {
+        return std::filesystem::exists(PIVISION_MODEL_DIR "/nanodet-plus-m-1.5x-416.onnx");
+    }
+
+    // Detection is slow (hundreds of ms on a Pi, the first run also loads the
+    // model), so these waits are longer than for frames.
+    static constexpr int kDetectionTimeoutMs = 15000;
+
+    // Waits until a detection result matching `accept` is the latest one.
+    static bool waitForDetection(Pipeline &pipeline,
+        const std::function<bool(const DetectionResult &)> &accept = [](const DetectionResult &) { return true; })
+    {
+        QSignalSpy available(&pipeline, &Pipeline::detectionAvailable);
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < kDetectionTimeoutMs) {
+            if (auto result = pipeline.latestDetection(); result && accept(*result))
+                return true;
+            available.wait(100);
+        }
+        return false;
+    }
+
+    // Waits until the detector reaches `state`.
+    static bool waitForDetectorState(Pipeline &pipeline, DetectorState state)
+    {
+        QSignalSpy changed(&pipeline, &Pipeline::detectorStateChanged);
+        QElapsedTimer timer;
+        timer.start();
+        while (pipeline.detectorState() != state && timer.elapsed() < kDetectionTimeoutMs)
+            changed.wait(100);
+        return pipeline.detectorState() == state;
     }
 };
 
@@ -204,6 +246,83 @@ TEST_F(PipelineTest, GivenArrivingFrames_WhenTheSourceIsSwitched_ThenMetricsRese
 
     pipeline.setSource(capture::makeTestPatternSource(patternOfWidth(320)));
     EXPECT_EQ(pipeline.metrics().displayFps, 0.0);
+}
+
+TEST_F(PipelineTest, GivenDetectionOff_WhenRunning_ThenNoDetectionsArrive)
+{
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
+    pipeline.setModelDescription(modelDescription());
+    pipeline.start();
+    ASSERT_TRUE(waitForRawWidth(pipeline, 320));
+    EXPECT_FALSE(pipeline.latestDetection().has_value());
+    EXPECT_EQ(pipeline.detectorState(), DetectorState::Off); // the model isn't even loaded
+}
+
+TEST_F(PipelineTest, GivenRawInput_WhenDetecting_ThenResultsAreOnRawSizedImages)
+{
+    if (!modelFetched())
+        GTEST_SKIP() << "model not found; run scripts/fetch-assets.sh";
+    constexpr int kRawWidth = 640;
+    constexpr int kProcessWidth = 320; // smaller, so the two inputs are told apart by size
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(kRawWidth)));
+    pipeline.setProcessSize(QSize(kProcessWidth, kProcessWidth * 3 / 4));
+    pipeline.setModelDescription(modelDescription());
+    pipeline.setDetectionEnabled(true);
+    pipeline.start();
+
+    ASSERT_TRUE(waitForDetection(pipeline));
+    const auto result = pipeline.latestDetection();
+    EXPECT_EQ(result->input, DetectionInput::Raw);
+    EXPECT_EQ(result->image.width(), kRawWidth);
+    EXPECT_GT(result->milliseconds, 0.0);
+    EXPECT_EQ(pipeline.detectorState(), DetectorState::Ready);
+}
+
+TEST_F(PipelineTest, GivenProcessedInput_WhenDetecting_ThenResultsAreOnProcessedImages)
+{
+    if (!modelFetched())
+        GTEST_SKIP() << "model not found; run scripts/fetch-assets.sh";
+    constexpr int kRawWidth = 640;
+    constexpr int kProcessWidth = 320;
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(kRawWidth)));
+    pipeline.setProcessSize(QSize(kProcessWidth, kProcessWidth * 3 / 4));
+    // Edges leaves one gray channel; the detector still needs three.
+    pipeline.setStages({ stage("edges", true) });
+    pipeline.setModelDescription(modelDescription());
+    pipeline.setDetectionInput(DetectionInput::Processed);
+    pipeline.setDetectionEnabled(true);
+    pipeline.start();
+
+    ASSERT_TRUE(waitForDetection(pipeline));
+    EXPECT_EQ(pipeline.latestDetection()->input, DetectionInput::Processed);
+    EXPECT_EQ(pipeline.latestDetection()->image.width(), kProcessWidth);
+}
+
+TEST_F(PipelineTest, GivenDetectionRunning_WhenSwitchedOff_ThenTheLatestDetectionIsCleared)
+{
+    if (!modelFetched())
+        GTEST_SKIP() << "model not found; run scripts/fetch-assets.sh";
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
+    pipeline.setModelDescription(modelDescription());
+    pipeline.setDetectionEnabled(true);
+    pipeline.start();
+    ASSERT_TRUE(waitForDetection(pipeline));
+
+    pipeline.setDetectionEnabled(false);
+    EXPECT_FALSE(pipeline.latestDetection().has_value());
+    EXPECT_EQ(pipeline.metrics().detectionsPerSecond, 0.0);
+}
+
+TEST_F(PipelineTest, GivenAMissingModel_WhenDetectionIsEnabled_ThenTheStateIsFailedWithAReason)
+{
+    Pipeline pipeline(capture::makeTestPatternSource(patternOfWidth(320)));
+    pipeline.setModelDescription(QStringLiteral("/nonexistent/model.json"));
+    pipeline.setDetectionEnabled(true);
+    pipeline.start();
+
+    ASSERT_TRUE(waitForDetectorState(pipeline, DetectorState::Failed));
+    EXPECT_FALSE(pipeline.detectorError().isEmpty());
+    EXPECT_FALSE(pipeline.latestDetection().has_value());
 }
 
 } // namespace pivision::pipeline

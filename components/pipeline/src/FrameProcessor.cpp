@@ -14,9 +14,11 @@
 
 namespace pivision::pipeline {
 
-FrameProcessor::FrameProcessor(RawFrameBuffer &input, LatestFrameBuffer &output)
+FrameProcessor::FrameProcessor(
+    RawFrameBuffer &input, LatestFrameBuffer &output, DetectionJobBuffer &detectionOutput)
     : input_(input)
     , output_(output)
+    , detectionOutput_(detectionOutput)
 {
 }
 
@@ -77,8 +79,38 @@ void FrameProcessor::processLatest()
         frame.processed = input == &image ? frame.raw : utils::toQImage(*input);
     }
 
+    if (detectionEnabled_)
+        feedDetection(image, chain_.anyEnabled() ? result_ : *input, frame);
+
     if (output_.put(std::move(frame)))
         emit frameAvailable();
+}
+
+void FrameProcessor::feedDetection(const cv::Mat &raw, const cv::Mat &processed, const DisplayFrame &frame)
+{
+    DetectionJob job;
+    job.input = detectionInput_;
+    job.frameIndex = frame.index;
+    job.captured = frame.captured;
+    job.generation = frame.generation;
+    if (detectionInput_ == DetectionInput::Raw) {
+        // The raw Mat isn't reused after this frame, so sharing it is safe (cv::Mat
+        // and QImage both count references; nothing is copied).
+        job.bgr = raw;
+        job.image = frame.raw;
+    } else {
+        // result_ is overwritten by the next frame, so the detector needs its own
+        // copy. Stages like edges leave one gray channel; the detector expects
+        // three (BGR), so gray is expanded.
+        if (processed.channels() == 1)
+            cv::cvtColor(processed, job.bgr, cv::COLOR_GRAY2BGR);
+        else
+            job.bgr = processed.clone();
+        job.image = frame.processed;
+    }
+    // Keeps only the newest job: while the detector is busy, frames are skipped.
+    if (detectionOutput_.put(std::move(job)))
+        emit detectionJobAvailable();
 }
 
 } // namespace pivision::pipeline
