@@ -1,8 +1,8 @@
 #!/bin/sh
-# Downloads the files pi-vision needs but doesn't keep in git (models), and
-# checks each against a pinned SHA-256 so a changed or corrupted download is
-# caught instead of used. Files that are already present and correct are
-# skipped, so it's safe to run any time.
+# Downloads the files pi-vision needs but doesn't keep in git (the model, a test
+# photo and the system-test clip), and checks each against a pinned SHA-256 so
+# a changed or corrupted download is caught instead of used. Files that are
+# already present and correct are skipped, so it's safe to run any time.
 #
 # Usage: scripts/fetch-assets.sh
 set -eu
@@ -49,20 +49,22 @@ fetch assets/media/messi5.jpg \
 # Pi can't decode (no FFmpeg or GStreamer in the image), so it's converted
 # with ffmpeg to Motion-JPEG AVI, which OpenCV reads with its own built-in
 # decoder: 640x480 like the camera, 30 fps (frames repeated) so the pipeline
-# sees a camera's load, first 30 s. The app loops a file at its end.
-# The converted file isn't checksummed: ffmpeg versions encode differently.
-fetch assets/media/vtest.avi \
-    https://raw.githubusercontent.com/opencv/opencv/4.9.0/samples/data/vtest.avi \
-    45cddc9490be69345cbdab64ca583be65987e864ca408038e648db99e10516cf
-
+# sees a camera's load, first 30 s. The app loops a file at its end. Only the
+# converted clip is kept; it isn't checksummed, as ffmpeg versions encode
+# differently.
 clip=assets/media/vtest-640x480-mjpeg.avi
+original=assets/media/vtest.avi
 if [ -f "$REPO/$clip" ]; then
     echo "ok       $clip"
 elif ! command -v ffmpeg >/dev/null; then
     echo "skipped  $clip: needs ffmpeg (system tests won't run without it)" >&2
 else
+    fetch "$original" \
+        https://raw.githubusercontent.com/opencv/opencv/4.9.0/samples/data/vtest.avi \
+        45cddc9490be69345cbdab64ca583be65987e864ca408038e648db99e10516cf
     echo "making   $clip"
-    ffmpeg -v error -y -i "$REPO/assets/media/vtest.avi" -t 30 -vf "scale=640:480,fps=30" \
+    ffmpeg -v error -y -i "$REPO/$original" -t 30 -vf "scale=640:480,fps=30" \
         -c:v mjpeg -q:v 8 -an -f avi "$REPO/$clip.tmp"
     mv "$REPO/$clip.tmp" "$REPO/$clip"
+    rm "$REPO/$original"
 fi

@@ -1,12 +1,14 @@
 qt_add_executable(pivision
     src/main.cpp
     src/TerminationHandler.cpp
-    src/TerminationHandler.h
     src/Utils.cpp
-    src/Utils.h
     src/WindowRecorder.cpp
-    src/WindowRecorder.h
+    private/TerminationHandler.h
+    private/Utils.h
+    private/WindowRecorder.h
 )
+
+target_include_directories(pivision PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/private)
 
 # Shared colors and sizes, used as "Theme" from any QML file in the module.
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)

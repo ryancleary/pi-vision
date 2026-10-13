@@ -597,8 +597,7 @@ def clean(args):
     remove(YOCTO_DIR)
     for pattern in FETCHED_ASSET_GLOBS:
         for path in sorted(REPO.glob(pattern)):
-            if not path.name.startswith("."):  # keep .gitkeep
-                remove(path)
+            remove(path)
     return 0
 
 
