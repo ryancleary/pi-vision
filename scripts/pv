@@ -76,8 +76,7 @@ DEVICE_APP_ENVIRONMENT = {
 # What pivision.service passes, so a device test with --camera matches normal use.
 DEVICE_CAMERA_FORMAT = "yuyv"
 GIF_FPS = 8  # the rate WindowRecorder saves frames at
-GIF_WIDTH = 640  # the UI stays readable; about 6 MB for the 30 s demo
-GIF_COLORS = 128  # half of a GIF's 256: barely visible on this UI, a quarter smaller
+GIF_COLORS = 256  # a GIF's most; fewer leaves the UI's text and edges grainy
 CRASH_DIR_ON_DEVICE = "/var/crash"
 CAPTURE_DIR_ON_DEVICE = "/var/crash/captures"
 SSH_OPTIONS = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
@@ -826,6 +825,12 @@ def make_gif(args):
     times = [int(line) for line in times_file.read_text().split()] if times_file.exists() else []
     if len(times) != len(images):
         times = [round(index * 1000 / GIF_FPS) for index in range(len(images))]
+    # Dropped here rather than cut from the GIF afterwards: each GIF frame only
+    # holds what changed since the one before, so cutting the first frames out
+    # loses everything that never changes (the side panel, the toolbar).
+    if args.skip >= len(images):
+        fail(f"--skip {args.skip} leaves no frames (there are {len(images)})")
+    images, times = images[args.skip:], times[args.skip:]
     listing = frames / "frames.ffconcat"
     entries = ["ffconcat version 1.0"]
     for index, image in enumerate(images):
@@ -833,11 +838,15 @@ def make_gif(args):
         entries += [f"file '{image.name}'", f"duration {(next_time - times[index]) / 1000:.3f}"]
     entries.append(f"file '{images[-1].name}'")  # concat needs the last one again for its duration
     listing.write_text("\n".join(entries) + "\n")
-    # stats_mode=diff and diff_mode=rectangle favour what changes between frames
-    # (the video), so the static UI doesn't eat the palette or the file size.
-    filters = (f"scale={args.width}:-1:flags=lanczos,split[a][b];"
-               f"[a]palettegen=max_colors={GIF_COLORS}:stats_mode=diff[p];"
-               f"[b][p]paletteuse=dither=bayer:diff_mode=rectangle")
+    # At the recorded size by default: scaling down blurs the UI's text. The
+    # palette comes from every pixel (stats_mode=full), so the UI's colors are in
+    # it as well as the video's; diff_mode=rectangle re-encodes only what changed,
+    # which keeps the file size down; a larger bayer_scale makes the dither
+    # pattern on the video less visible (ffmpeg-filters, paletteuse).
+    scale = f"scale={args.width}:-1:flags=lanczos," if args.width else ""
+    filters = (f"{scale}split[a][b];"
+               f"[a]palettegen=max_colors={GIF_COLORS}:stats_mode=full[p];"
+               f"[b][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle")
     status = run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-i", str(listing),
                   "-vf", filters, str(output)])
     if status == 0:
@@ -1041,8 +1050,10 @@ def main():
     gif.add_argument("frames", nargs="?",
                      help="frames directory (default: the newest systest run's frames)")
     gif.add_argument("-o", "--output", help="GIF file (default: demo.gif next to the frames)")
-    gif.add_argument("--width", type=int, default=GIF_WIDTH,
-                     help=f"width in pixels (default: {GIF_WIDTH})")
+    gif.add_argument("--width", type=int,
+                     help="scale to this width in pixels (default: the recorded size)")
+    gif.add_argument("--skip", type=int, default=0, metavar="N",
+                     help="leave out the first N frames, e.g. ones before the video shows")
 
     cleaning = commands.add_parser(
         "clean", help="remove build output",
