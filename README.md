@@ -138,10 +138,11 @@ calibration) and one for the GeekPi 7" touchscreen. Find the SD card with
 
 ```sh
 sha256sum -c SHA256SUMS --ignore-missing
-sudo bmaptool copy --bmap pivision-1.0.0-rpi3.wic.bmap pivision-1.0.0-rpi3.wic.bz2 /dev/sdX
+sudo wipefs -a /dev/sdX
+bzcat pivision-1.0.0-rpi3.wic.bz2 | sudo dd of=/dev/sdX bs=4M conv=fsync status=progress
 ```
 
-Without `bmaptool`: `bzcat pivision-1.0.0-rpi3.wic.bz2 | sudo dd of=/dev/sdX bs=4M conv=fsync status=progress`.
+`wipefs` clears the card's old partition table and filesystem signatures first.
 The release also has each image's license manifest and the sources of its
 GPL and LGPL packages.
 
@@ -163,6 +164,7 @@ To flash the Pi image, find the SD card with `lsblk` (check the size and model
 carefully), unmount its partitions, then:
 
 ```sh
+sudo wipefs -a /dev/sdX
 bzcat yocto/build/tmp/deploy/images/raspberrypi3-64/pivision-image-raspberrypi3-64.rootfs.wic.bz2 \
     | sudo dd of=/dev/sdX bs=4M conv=fsync status=progress
 ```
