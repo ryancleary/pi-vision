@@ -107,6 +107,9 @@ A Yocto Scarthgap image built with [kas](https://kas.readthedocs.io), defined in
 - The root filesystem holds about 140 MB of software, Qt Quick included.
 - Also builds for `qemux86-64`, so the whole image can be run and tested without
   hardware.
+- Two variants: the dev image has SSH with an empty root password, which
+  `scripts/pv` uses for logs, captures and system tests; the release image has
+  no remote access at all.
 
 ## Running it
 
@@ -126,7 +129,23 @@ cmake --preset debug && cmake --build --preset debug && ctest --preset debug
 build/debug/app/pivision          # first camera, or --test-pattern, or a video file
 ```
 
-### QEMU and Raspberry Pi 3
+### Raspberry Pi 3, from a release
+
+Each [release](https://github.com/ryancleary/pi-vision/releases) has two
+images: one for any HDMI screen (USB touchscreens work as well, without
+calibration) and one for the GeekPi 7" touchscreen. Find the SD card with
+`lsblk` (check the size and model carefully), unmount its partitions, then:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
+sudo bmaptool copy --bmap pivision-1.0.0-rpi3.wic.bmap pivision-1.0.0-rpi3.wic.bz2 /dev/sdX
+```
+
+Without `bmaptool`: `bzcat pivision-1.0.0-rpi3.wic.bz2 | sudo dd of=/dev/sdX bs=4M conv=fsync status=progress`.
+The release also has each image's license manifest and the sources of its
+GPL and LGPL packages.
+
+### QEMU and Raspberry Pi 3, from source
 
 Building an image takes several hours the first time and around 50 GB of disk.
 It runs in kas-container, so the host needs [kas](https://kas.readthedocs.io)
@@ -136,6 +155,8 @@ It runs in kas-container, so the host needs [kas](https://kas.readthedocs.io)
 scripts/pv build image qemux86-64 && scripts/pv run qemux86-64
 scripts/pv build image rpi3                            # any HDMI screen
 scripts/pv build image rpi3 --display geekpi-ep0084    # GeekPi 7" touchscreen
+scripts/pv build image rpi3 --release                  # no SSH, plus copyleft sources
+scripts/pv release rpi3                                # both release images, collected in release/
 ```
 
 To flash the Pi image, find the SD card with `lsblk` (check the size and model

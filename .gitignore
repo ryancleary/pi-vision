@@ -20,7 +20,8 @@ assets/models/*
 !assets/models/*.json
 assets/media/
 
-# Release images
+# Release images, and what scripts/pv release collects
+release/
 *.wic
 *.wic.bz2
 *.bmap

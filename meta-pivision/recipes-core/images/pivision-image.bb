@@ -7,8 +7,8 @@ inherit core-image
 IMAGE_INSTALL = "packagegroup-core-boot ${CORE_IMAGE_EXTRA_INSTALL}"
 IMAGE_LINGUAS = ""
 
-# Development access: SSH with an empty root password.
-# Removed when the release image is split out.
+# Development access: SSH with an empty root password, for scripts/pv logs,
+# captures and systest. pivision-image-release removes it.
 IMAGE_FEATURES += "splash ssh-server-dropbear allow-empty-password empty-root-password allow-root-login"
 
 # Kernel modules each target needs. Most drivers are compiled into the kernel

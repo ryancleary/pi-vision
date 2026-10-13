@@ -3,7 +3,8 @@
 
   scripts/pv targets                          list image targets
   scripts/pv build desktop [--preset NAME]    configure, build and test the desktop app
-  scripts/pv build image TARGET [--display D] build the Yocto image for TARGET
+  scripts/pv build image TARGET [--display D] [--release]
+                                              build the Yocto image for TARGET
   scripts/pv build all                        every desktop preset and every image target
   scripts/pv size TARGET                      sizes of the last image built for TARGET
   scripts/pv run TARGET [options]             boot a QEMU target's image (see: run --help)
@@ -14,13 +15,17 @@
   scripts/pv report TARGET [DIR...]           show (and save) the summaries of earlier systest runs
   scripts/pv gif [DIR]                        turn frames recorded by systest --record into a GIF
   scripts/pv clean WHAT [options]             remove build output (see: clean --help)
+  scripts/pv release TARGET                   build the release images and collect them in release/
 
 Image targets are defined in targets/<name>.json. Each points at a kas file,
 which stays the source of truth for the Yocto configuration. Screens that
 need their own fixes have a kas file in kas/displays/, added with --display.
+--release adds kas/release.yml: the image without SSH, plus the sources of its
+copyleft packages.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -37,6 +42,15 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 TARGETS_DIR = REPO / "targets"
 DISPLAYS_DIR = REPO / "kas" / "displays"
+RELEASE_KAS = REPO / "kas" / "release.yml"
+RELEASE_IMAGE = "pivision-image-release"  # the target in kas/release.yml
+RELEASE_DIR = REPO / "release"
+APP_RECIPE = REPO / "meta-pivision" / "recipes-apps" / "pivision" / "pivision_git.bb"
+# What the pivision recipe builds from its SRCREV: these must match HEAD in a release.
+APP_SOURCE_PATHS = ["CMakeLists.txt", "CMakePresets.json", "cmake", "app", "components", "assets/models"]
+# "Each file included in a release must be under 2 GiB."
+# https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases#storage-and-bandwidth-quotas
+GITHUB_ASSET_LIMIT = 2 * 1024 ** 3
 LOG_ROOT = REPO / "build-logs"
 KAS = REPO / "scripts" / "kas.sh"
 YOCTO_DIR = REPO / "yocto"
@@ -130,13 +144,16 @@ def known_displays():
     return sorted(path.stem for path in DISPLAYS_DIR.glob("*.yml"))
 
 
-def image_commands(target, display=None):
-    """kas takes several config files joined with ':'; a display's is added on top of the target's."""
+def image_commands(target, display=None, release=False):
+    """kas takes several config files joined with ':'; a display's and the release's
+    are added on top of the target's."""
     config = target["kas"]
     if display:
         if display not in known_displays():
             fail(f"unknown display '{display}'. Known displays: {', '.join(known_displays()) or 'none'}")
         config += ":" + str((DISPLAYS_DIR / f"{display}.yml").relative_to(REPO))
+    if release:
+        config += ":" + str(RELEASE_KAS.relative_to(REPO))
     return [[str(KAS), "build", config]]
 
 
@@ -828,6 +845,99 @@ def make_gif(args):
     return status
 
 
+def project_version():
+    match = re.search(r"project\(PiVision VERSION (\S+)", (REPO / "CMakeLists.txt").read_text())
+    if not match:
+        fail("no project version in CMakeLists.txt")
+    return match.group(1)
+
+
+def check_release_source(version):
+    """The image builds the app from the recipe's SRCREV, so that commit's app must be HEAD's."""
+    if git_output("status", "--porcelain"):
+        fail("working tree not clean; commit first")
+    recipe = APP_RECIPE.read_text()
+    srcrev = re.search(r'^SRCREV = "(\w+)"', recipe, re.M).group(1)
+    pv = re.search(r'^PV = "([^"+]+)', recipe, re.M).group(1)
+    if pv != version:
+        fail(f"CMakeLists.txt says {version} but the recipe's PV says {pv}; make them match")
+    status = subprocess.run(["git", "diff", "--quiet", srcrev, "HEAD", "--", *APP_SOURCE_PATHS],
+                            cwd=REPO).returncode
+    if status == 1:
+        fail(f"the app at SRCREV {srcrev[:7]} differs from HEAD; push, bump SRCREV, then release")
+    if status != 0:
+        fail(f"SRCREV {srcrev[:7]} isn't in this repo; is it pushed and fetched?")
+
+
+def git_output(*args):
+    return subprocess.run(["git", *args], cwd=REPO, check=True, capture_output=True,
+                          text=True).stdout.strip()
+
+
+def newest(paths):
+    paths = list(paths)
+    return max(paths, key=lambda path: path.stat().st_mtime) if paths else None
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def make_release(target):
+    """Builds the release image for the plain target and for each display, and collects
+    each image, its block map and license manifest, the copyleft sources and checksums."""
+    if target["delivery"] != "sdcard":
+        fail(f"{target['name']} is delivered by {target['delivery']}; releases are SD card images")
+    version = project_version()
+    check_release_source(version)
+
+    out_dir = RELEASE_DIR / f"v{version}"
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True)
+
+    image_dir = DEPLOY_DIR / target["machine"]
+    prefix = f"{RELEASE_IMAGE}-{target['machine']}.rootfs"
+    for display in [None] + known_displays():
+        print(f"\n=== {target['name']} {display or '(any HDMI screen)'} ===", flush=True)
+        if not run_step(image_commands(target, display, release=True)):
+            return 1
+        name = f"pivision-{version}-{target['name']}" + (f"-{display}" if display else "")
+        for suffix in ("wic.bz2", "wic.bmap"):
+            source = image_dir / f"{prefix}.{suffix}"
+            if not source.exists():
+                fail(f"{source.relative_to(REPO)} not found after the build")
+            shutil.copy(source, out_dir / f"{name}.{suffix}")  # follows the deploy symlink
+        manifest = newest(path for path in (YOCTO_TMP_DIR / "deploy" / "licenses").rglob("license.manifest")
+                          if path.parent.name.startswith(prefix))
+        if manifest is None:
+            fail(f"no license.manifest for {prefix} under yocto/build/tmp/deploy/licenses")
+        shutil.copy(manifest, out_dir / f"{name}.license.manifest")
+
+    # Already-compressed archives, so a plain tar.
+    sources = out_dir / f"pivision-{version}-sources.tar"
+    print(f"\nCollecting copyleft sources into {sources.relative_to(REPO)}", flush=True)
+    with tarfile.open(sources, "w") as tar:
+        tar.add(YOCTO_TMP_DIR / "deploy" / "sources", arcname=f"pivision-{version}-sources")
+
+    files = sorted(path for path in out_dir.iterdir())
+    (out_dir / "SHA256SUMS").write_text("".join(f"{sha256(path)}  {path.name}\n" for path in files))
+    print(f"\nRelease v{version} in {out_dir.relative_to(REPO)}:")
+    for path in files + [out_dir / "SHA256SUMS"]:
+        size = path.stat().st_size
+        warning = "  over GitHub's 2 GiB limit per file" if size >= GITHUB_ASSET_LIMIT else ""
+        print(f"  {human_size(size):>10}  {path.name}{warning}")
+    print(f"\nPublish (with release notes in a file of your own):\n"
+          f"  git tag v{version} && git push origin v{version}\n"
+          f"  gh release create v{version} {out_dir.relative_to(REPO)}/* "
+          f"--title 'pi-vision {version}' --notes-file NOTES.md")
+    return 0
+
+
 def collect_logs(target, args):
     if args.card:
         card = Path(args.card).expanduser()
@@ -853,6 +963,8 @@ def main():
     build.add_argument("--display", metavar="NAME",
                        help="for 'build image': add a screen's fixes from kas/displays/NAME.yml "
                             "(see: scripts/pv targets)")
+    build.add_argument("--release", action="store_true",
+                       help="for 'build image': the release image (no SSH) and its copyleft sources")
 
     size = commands.add_parser("size", help="show image sizes for a target")
     size.add_argument("target")
@@ -945,6 +1057,16 @@ def main():
     cleaning.add_argument("--deep", action="store_true", help="for 'clean all': everything, see above")
     cleaning.add_argument("-y", "--yes", action="store_true", help="don't ask before a deep clean")
 
+    release = commands.add_parser(
+        "release", help="build the release images and collect them in release/",
+        description="Builds the release image (kas/release.yml) for TARGET, once for any HDMI "
+                    "screen and once per display in kas/displays/, then collects in "
+                    "release/vVERSION/: each image (.wic.bz2) with its block map (.wic.bmap) and "
+                    "license manifest, the sources of the copyleft packages (.tar), and "
+                    "SHA256SUMS. VERSION is CMakeLists.txt's. The working tree must be clean "
+                    "and the recipe's SRCREV must build HEAD's app.")
+    release.add_argument("target")
+
     args = parser.parse_args()
 
     if args.command == "targets":
@@ -982,13 +1104,16 @@ def main():
     if args.command == "gif":
         return make_gif(args)
 
+    if args.command == "release":
+        return make_release(get_target(args.target))
+
     if args.what == "desktop":
         check_desktop_environment()
         return 0 if run_step(desktop_commands(args.preset)) else 1
     if args.what == "image":
         if not args.target:
             fail("build image needs a target; see: scripts/pv targets")
-        return 0 if run_step(image_commands(get_target(args.target), args.display)) else 1
+        return 0 if run_step(image_commands(get_target(args.target), args.display, args.release)) else 1
     return build_all()
 
 

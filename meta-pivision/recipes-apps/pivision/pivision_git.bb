@@ -6,7 +6,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=35189d49d63465911468cb1f5b244583"
 # Built from GitHub at a pinned commit. Update SRCREV after pushing app changes.
 SRC_URI = "git://github.com/ryancleary/pi-vision.git;protocol=https;branch=main"
 SRCREV = "445364fe778f1d558d40d2c3d7bea95180c3746b"
-PV = "0.1+git"
+PV = "1.0.0+git"
 S = "${WORKDIR}/git"
 
 # udev: libudev, for camera hotplug (provided by systemd).

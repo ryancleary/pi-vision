@@ -1,0 +1,18 @@
+# The release image, added on top of a target:
+#   scripts/pv build image rpi3 --release
+# (scripts/pv release builds it for every screen and collects what to publish.)
+header:
+  version: 14
+
+target: pivision-image-release
+
+local_conf_header:
+  release: |
+    # Publishing the image passes on GPL and LGPL binaries (kernel, BusyBox,
+    # glibc, systemd, Qt), so their sources are published with it: the original
+    # source archives and patches of each target recipe under a copyleft
+    # license (archiver's default filter), in tmp/deploy/sources.
+    # https://git.yoctoproject.org/poky/tree/meta/classes/archiver.bbclass?h=scarthgap
+    INHERIT += "archiver"
+    ARCHIVER_MODE[src] = "original"
+    COPYLEFT_RECIPE_TYPES = "target"
